@@ -1,0 +1,16 @@
+# README for data files in this current folder ("Data")
+
+1) cellmatch.rds (v3.2.1): cellmatch database downloaded from scCATCH
+https://github.com/ZJUFanLab/scCATCH_performance_comparison
+This is curated database with the reference of https://www.sciencedirect.com/science/article/pii/S2589004220300663
+https://github.com/ZJUFanLab/scCATCH
+
+    readRDS("cellmatch.rds") to read the data base.
+2) file:///home/feng/Feng/hg/scravid/Data/Cell_marker_Seq.xlsx
+cell_marker_seq downloaded from http://117.50.127.228/CellMarker/CellMarker_download.html
+
+There are other type of markers too. 
+
+reference: cellmarker 2.0 https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9825416/
+
+3) data for single cell RNASeq data. Seurat Objects with cluster information.
