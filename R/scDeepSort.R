@@ -78,5 +78,8 @@ model <- ds$DeepSortPredictor(species='human',
                           tissue='Blood')
 test_files = here(data.dir,'cvid.c2_data.csv')
 model$predict(test_files, save_path=NULL)->results
+table(results$cell_type)
+#do this to the other 2 clusters
 
-#
+#also Todo??? train own model??? using celldex data for 
+# fine label??? 

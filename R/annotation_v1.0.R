@@ -48,7 +48,7 @@ obj <- createscCATCH(data = cvid.combined[['RNA']]@data,
 obj <- findmarkergene(object = obj, species = "Human", marker = cellmatch, tissue = "Peripheral blood")
 
 obj <- findcelltype(object = obj)
-#demo_marker() %>% View("f")
+obj@celltype %>% View("m")
 
 #scina
 #need to make a signature (markers)
@@ -95,13 +95,16 @@ results = SCINA(exp, s, max_iter = 100, convergence_n = 10,
     rm_overlap=FALSE, allow_unknown=TRUE, log_file='SCINA.log')
 
 View(results$cell_labels)
-table(results$cell_labels) #%>% 
-View(results$probabilities)
+#show summary of the labels. still not correct
+table(results$cell_labels) %>% View("m3")
+#View(results$probabilities)
 
 # get rid of the signature genes not in the exp expression array
 s.rm<-lapply(s, FUN=function(x){
 		x<-x[is.element(x,rownames(exp))]
 	})
+
+##BE CAREFUL!! this will take very long.
 plotheat.SCINA(exp, results, s.rm)
 
 #doing singleR
@@ -114,17 +117,19 @@ hpca.se <- HumanPrimaryCellAtlasData()
 imm.ref<-celldex::MonacoImmuneData()
 
 #turn into a sce to do singleR
-cvid6.sce<-as.SingleCellExperiment(CVIDagg6.Low.Cluster2) #cvid.combined)
+cvid6.c2<-as.SingleCellExperiment(CVIDagg6.Low.Cluster2) #cvid.combined)
 
 #run assignment
-pred.cvid6.sce <- SingleR(test = cvid6.sce, ref = hpca.se, assay.type.test=1,
+pred.cvid6.c2 <- SingleR(test = cvid6.c2, ref = hpca.se, assay.type.test=1,
     labels = hpca.se$label.main)
 
-pred.cvid6.fine <- SingleR(test = cvid6.sce, ref = hpca.se, assay.type.test=1,
+pred.cvid6.c2.fine <- SingleR(test = cvid6.c2, ref = hpca.se, assay.type.test=1,
     labels = hpca.se$label.fine)
 
+table(pred.cvid6.c2.fine$labels) %>% View("m3")
 #now add back the labels to the original seurat object
 
-#cvid6.combined@meta.data$label.main<-pred.cvid6.sce[rownames(cvid6.combined@meta.data),"labels"]
-#cvid6.int@meta.data$label.fine<-pred.cvid6.fine[rownames(CVIDagg5.int@meta.data),"labels"]
+CVIDagg6.Low.Cluster2@meta.data$label.main<-pred.cvid6.c2[rownames(CVIDagg6.Low.Cluster2@meta.data),"labels"]
+CVIDagg6.Low.Cluster2@meta.data$label.fine<-pred.cvid6.c2.fine[rownames(CVIDagg6.Low.Cluster2@meta.data),"labels"]
 
+#do this to other 2 clusters please!!!
