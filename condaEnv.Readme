@@ -1,5 +1,5 @@
 #using the conda env
-scRNASeq
+conda env is "scRNASeq"
 R 4.2.2
 P52S linux
 Debian 10
