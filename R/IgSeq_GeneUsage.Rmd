@@ -81,7 +81,7 @@ head(IgHVs.wide)
 
 ```
 
-The next thing we want to do is to transform the frequency counts into composition data. So that we can do more things like PCA.
+# 3) The next thing we want to do is to transform the frequency counts into composition data. So that we can do more things like PCA.
 
 ```{r}
 #now let's got them into compositions
@@ -106,7 +106,7 @@ IgHVs.clr<-clr(IgHVs.comp)
 
 head(IgHVs.clr)
 ```
-
+# 4) PCA analysis of IGHV segments
 Now Let's do PCA, because the IGHV gene segment data are kind of high dimension. With PCA, we reduce the dimentsion and see the pattern better.
 
 ```{r}
@@ -173,14 +173,14 @@ g78<-autoplot(pca.clrd,x=7,y=8,data=IgHVs.dat,
       loadings.label.size=4, loadings.colour="orange", 
       loadings.label.colour="orange"
     )
-g78
+print(g78)
 ```
 The pattern of the data in other dimensions are not easy to discern, except that it seems that dimension 7 and 8 is more about differences in cell populations, because the same cell populations from different subjects stay closer. 
 
 We definitely should look at them more to find the pattern. 
 
 The above patterns are also confirmed by doing ANOVA statistical tests.
-
+## i) Anova
 ```{r}
 ####now let's do anova 
   library(car)
@@ -229,6 +229,59 @@ Overall, it does show that CVID affects the IGHV segment usage.
 
 Note: Erik, could you please do the similar analysis for IGHJ, IGHD and similarly light chain usages?
 Also want to mention, the R code used in this analysis are in IgSeq_geneUsage.R file.
+
+## ii) PCA loadings to show individual gene segment contributions
+
+Let's first plot the PC loading plot
+```{r, eval=T}
+ld1<-autoplot(pca.clrd,x=1,y=2,data=IgHVs.dat, 
+    colour="subs",shape="cells",
+        label=F , label.repel=F,frame=F,  size=4,#frame.type="t"
+      loadings=T, loadings.label=T, loading.label.repel=T,
+      loadings.label.size=2, loadings.colour="orange", 
+      loadings.label.colour="orange"
+    )
+print(ld1)
+```
+
+The loading figure is very similar to the above figure, except that we now add the IGHV segments (arrowed lines). The lines that are more extended in the direction of the axis are contributing more to that PC/dimension. In our case, it is IGHV4.4, IGHV4.28, IGHV1.45, and IGHV5.10,1, IGHV2.70, etc. One thing to mention is the direction. The direction means the upregulate or downregulate when comparing CVIDs with healthy  controls.  
+Another more direct and quantitative way to look at the loading or contribution of individual IGHV segaments is to calculate the contributions. There are two ways: the contribution of the individual IGHV to different PCs and the contribution of different IGHVs to the same PCs. 
+For example, we can look at the IHGV contributions to PC1.
+```{r}
+contributions<-pca.clrd$rotation[,1]
+contributions<-(contributions*abs(contributions))/sum(contributions^2)*100
+
+contributions=sort(contributions)
+print(contributions)
+
+cts<-data.frame(IGHV=names(contributions),contributions)
+cts$IGHV<-factor(cts$IGHV, levels=names(contributions))
+ggplot(data=cts, aes(x=IGHV, y=contributions))+
+geom_bar(stat = "identity", fill="blue")+theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+ggtitle("Contribution to PC1")
+
+``` 
+In this example, we can see that IGHV4.28 contributes about 5.347% to PC1 and IGHV5.10.1 contributes about 5.99% to PC1 but with a negative sign, meaning different contribution in terms of up- or down-regulation.
+
+Next is the contribution of IGHV to different PCs. Let's just do IGHV1.45
+```{r}
+contributions<-pca.clrd$rotation["IGHV2.70",]
+contributions<-(contributions*abs(contributions))/sum(contributions^2)*100
+
+
+contributions=sort(contributions)
+print(contributions)
+
+cts<-data.frame(PCs=names(contributions),contributions)
+cts$PCs<-factor(cts$PCs, levels=names(contributions))
+ggplot(data=cts, aes(x=PCs, y=contributions))+
+geom_bar(stat = "identity", fill="blue")+theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+ggtitle("Contribution of IGHV1.45")
+
+``` 
+In this case, IGHV1.45 contributes largely to PC1, but not PC2,3,or 4. Although it also contributes to larger PCs (PC15 and PC11), it doesn't matter since larger PCs don't carry huge varitions/info.  
+
+
 
 ```{r}
 sessionInfo()
