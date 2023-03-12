@@ -21,3 +21,5 @@ reference: cellmarker 2.0 https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9825416/
 5) data for doing BCR seq/IgSeq. They are links. I link them to the windows folder pjmaglione, in which I have the data downloaded from linux after cellranger. The I also save the rdata after I read the BCR data in R.
 BCR_vdj.RData
     3/4/2023  (data processed in IgSeq_data.R
+    
+6) enclone, this is the folder holding the pool clonotype data for all six subjects. It is a link pointing to the windows MSI maglione enclone folder. That folder contains the data downloaded from theano /projectnb/keplab
