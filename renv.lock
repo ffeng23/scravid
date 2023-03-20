@@ -697,6 +697,14 @@
         "beachmat"
       ]
     },
+    "SpadeR": {
+      "Package": "SpadeR",
+      "Version": "0.1.1",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "69383ea1e506235b335a41b4a367c0da",
+      "Requirements": []
+    },
     "SparseM": {
       "Package": "SparseM",
       "Version": "1.81",
@@ -1796,6 +1804,18 @@
         "jsonlite",
         "mime",
         "openssl"
+      ]
+    },
+    "iNEXT": {
+      "Package": "iNEXT",
+      "Version": "3.0.0",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "2ffb7027ef96c234c3c1ce6fef215ff8",
+      "Requirements": [
+        "Rcpp",
+        "ggplot2",
+        "reshape2"
       ]
     },
     "ica": {
