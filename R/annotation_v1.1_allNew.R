@@ -1,6 +1,10 @@
 # R code to do cell type annotation
-# used to annotate the originally clustered by Erik for 
-# cd38low cluster 2, 6, and 7
+# used to annotate the newly clustered data
+# (4/25/2023) for all clusters
+#  The data were generated in 
+#../../scravid2/CVIDagg6_SeuratPipeline_FF_v1.0.R
+#
+#-------------------------------
 #   --- minor change
 #=========================
 # using different methods
@@ -29,17 +33,11 @@ library(SingleCellExperiment)
 data.dir<-"Data"
 
 #cluster 2, scRNASeq data.
-load(here(data.dir,"CVIDagg6_Low_Cluster2.rdata"))
-		#loaded the CVIDagg6.Low.Cluster2
-
-load(here(data.dir,"CVIDagg6_Low_Cluster6.rdata"))
-		#loaded the CVIDagg6.Low.Cluster6
-
-load(here(data.dir,"CVIDagg6_Low_Cluster7.rdata"))
-		#loaded the CVIDagg6.Low.Cluster2
-cvid.combined<-merge(CVIDagg6.Low.Cluster2, 
-		y=c(CVIDagg6.Low.Cluster6,CVIDagg6.Low.Cluster7),
-		project="CVID.merge")
+#load(here(data.dir,"scObject.intergrateMNN.RData"))
+		#loaded 
+		# the data were generated in ../../scravid2/CVIDagg6_SeuratPipeline_FF_v1.0.R
+#now we load a newly saved data which has more features
+CVIDagg6.int<-readRDS(file="../scravid2/CVIDagg6_MNN_10K.rds")
 
 #########################
 #	do marker based annotation
@@ -47,8 +45,8 @@ cvid.combined<-merge(CVIDagg6.Low.Cluster2,
 #scCATCH first
 #now we need to make a maker list (cellmatch)
 
-obj <- createscCATCH(data = cvid.combined[['RNA']]@data, 
-		cluster = as.character(Idents(cvid.combined)))
+obj <- createscCATCH(data = CVIDagg6.int[["mnn.reconstructed"]]@data, 
+		cluster = as.character(CVIDagg6.int$seurat_clusters))
 obj <- findmarkergene(object = obj, species = "Human", marker = cellmatch, tissue = "Peripheral blood")
 
 obj <- findcelltype(object = obj)
@@ -92,7 +90,8 @@ s<-signatures.list[unlist(
 lapply(s, length)
 #s<-s[1:10]
 #get exp
-exp<-cvid.combined[['RNA']]@data
+#exp<-cvid.combined[['RNA']]@data
+exp<-CVIDagg6.int[['mnn.reconstructed']]@data
 exp<-as.matrix(exp)
 results = SCINA(exp, s, max_iter = 100, convergence_n = 10, 
     convergence_rate = 0.999, sensitivity_cutoff = 0.9, 
@@ -119,9 +118,9 @@ plotheat.SCINA(exp, results, s.rm)
 #           which one gives the most reasonable assignment.
 hpca.se <- HumanPrimaryCellAtlasData()
 imm.ref<-celldex::MonacoImmuneData()
-
+DefaultAssay(CVIDagg6.int)<-"mnn.reconstructed"
 #turn into a sce to do singleR
-cvid6.c2<-as.SingleCellExperiment(CVIDagg6.Low.Cluster2) #cvid.combined)
+cvid6.c2<-as.SingleCellExperiment(CVIDagg6.int) #cvid.combined)
 
 #run assignment
 pred.cvid6.c2 <- SingleR(test = cvid6.c2, ref = hpca.se, assay.type.test=1,

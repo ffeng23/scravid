@@ -23,3 +23,5 @@ BCR_vdj.RData
     3/4/2023  (data processed in IgSeq_data.R
     
 6) enclone, this is the folder holding the pool clonotype data for all six subjects. It is a link pointing to the windows MSI maglione enclone folder. That folder contains the data downloaded from theano /projectnb/keplab
+
+7) scObject.intergrateMNN.RData: this is the new data that were done using MNN containing all clusters. They were generated in ../../scravid2, linked here.

@@ -1,0 +1,12 @@
+1)
+IGHV gene family: usage
+
+2) definition of clone
+
+https://www.frontiersin.org/articles/10.3389/fimmu.2018.01472/full
+
+included in a common clone, they must share the same V-gene, J-gene, and CDR3 nucleotide length. Further, each pair of sequences within the clone must share at least 85% CDR3 amino-acid similarity by Hamming distance. The script to run the ImmuneDB pipeline with these parameters is shown in Code 2.
+
+for us: identical CDR3 aa sequence.
+
+3)
