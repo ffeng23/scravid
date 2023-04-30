@@ -45,7 +45,7 @@ CVIDagg6.int<-readRDS(file="../scravid2/CVIDagg6_MNN_10K.rds")
 #scCATCH first
 #now we need to make a maker list (cellmatch)
 
-obj <- createscCATCH(data = CVIDagg6.int[["mnn.reconstructed"]]@data, 
+obj <- createscCATCH(data = CVIDagg6.int[["RNA"]]@data, 
 		cluster = as.character(CVIDagg6.int$seurat_clusters))
 obj <- findmarkergene(object = obj, species = "Human", marker = cellmatch, tissue = "Peripheral blood")
 
@@ -91,7 +91,7 @@ lapply(s, length)
 #s<-s[1:10]
 #get exp
 #exp<-cvid.combined[['RNA']]@data
-exp<-CVIDagg6.int[['mnn.reconstructed']]@data
+exp<-CVIDagg6.int[['RNA']]@data
 exp<-as.matrix(exp)
 results = SCINA(exp, s, max_iter = 100, convergence_n = 10, 
     convergence_rate = 0.999, sensitivity_cutoff = 0.9, 
@@ -118,7 +118,7 @@ plotheat.SCINA(exp, results, s.rm)
 #           which one gives the most reasonable assignment.
 hpca.se <- HumanPrimaryCellAtlasData()
 imm.ref<-celldex::MonacoImmuneData()
-DefaultAssay(CVIDagg6.int)<-"mnn.reconstructed"
+DefaultAssay(CVIDagg6.int)<-"RNA"
 #turn into a sce to do singleR
 cvid6.c2<-as.SingleCellExperiment(CVIDagg6.int) #cvid.combined)
 
