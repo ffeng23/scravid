@@ -37,7 +37,7 @@ data.dir<-"Data"
 		#loaded 
 		# the data were generated in ../../scravid2/CVIDagg6_SeuratPipeline_FF_v1.0.R
 #now we load a newly saved data which has more features
-CVIDagg6.int<-readRDS(file="../scravid2/CVIDagg6_MNN_10K.rds")
+CVIDagg6.int<-readRDS(file=here("Output","CVIDagg6_MNN_2K.rds"))
 
 #########################
 #	do marker based annotation
@@ -51,7 +51,7 @@ obj <- findmarkergene(object = obj, species = "Human", marker = cellmatch, tissu
 
 obj <- findcelltype(object = obj)
 obj@celltype %>% View("m")
-
+saveRDS(file=here("Output","scCATCH_annotation.Rds"),obj)
 #scina
 #need to make a signature (markers)
 signature.db<- cellmatch %>% select(-pmid) %>%
@@ -130,9 +130,10 @@ pred.cvid6.c2.fine <- SingleR(test = cvid6.c2, ref = hpca.se, assay.type.test=1,
     labels = hpca.se$label.fine)
 
 table(pred.cvid6.c2.fine$labels) %>% View("m3")
+table(pred.cvid6.c2$labels) %>% View("m3")
 #now add back the labels to the original seurat object
 
-CVIDagg6.Low.Cluster2@meta.data$label.main<-pred.cvid6.c2[rownames(CVIDagg6.Low.Cluster2@meta.data),"labels"]
-CVIDagg6.Low.Cluster2@meta.data$label.fine<-pred.cvid6.c2.fine[rownames(CVIDagg6.Low.Cluster2@meta.data),"labels"]
+CVIDagg6.int@meta.data$label.main<-pred.cvid6.c2[rownames(CVIDagg6.int@meta.data),"labels"]
+CVIDagg6.int@meta.data$label.fine<-pred.cvid6.c2.fine[rownames(CVIDagg6.int@meta.data),"labels"]
 
 #do this to other 2 clusters please!!!
