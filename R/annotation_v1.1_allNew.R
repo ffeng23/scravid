@@ -1,6 +1,12 @@
 # R code to do cell type annotation
-# used to annotate the originally clustered by Erik for 
-# cd38low cluster 2, 6, and 7
+#  -- NOTE: see the 
+#"file:///home/feng/Feng/hg/scravid/Output/annotation_v1.1_allNew.Rmd"
+# used to annotate the newly clustered data
+# (4/25/2023) for all clusters
+#  The data were generated in 
+#../../scravid2/CVIDagg6_SeuratPipeline_FF_v1.0.R
+#
+#-------------------------------
 #   --- minor change
 #=========================
 # using different methods
@@ -29,17 +35,11 @@ library(SingleCellExperiment)
 data.dir<-"Data"
 
 #cluster 2, scRNASeq data.
-load(here(data.dir,"CVIDagg6_Low_Cluster2.rdata"))
-		#loaded the CVIDagg6.Low.Cluster2
-
-load(here(data.dir,"CVIDagg6_Low_Cluster6.rdata"))
-		#loaded the CVIDagg6.Low.Cluster6
-
-load(here(data.dir,"CVIDagg6_Low_Cluster7.rdata"))
-		#loaded the CVIDagg6.Low.Cluster2
-cvid.combined<-merge(CVIDagg6.Low.Cluster2, 
-		y=c(CVIDagg6.Low.Cluster6,CVIDagg6.Low.Cluster7),
-		project="CVID.merge")
+#load(here(data.dir,"scObject.intergrateMNN.RData"))
+		#loaded 
+		# the data were generated in ../../scravid2/CVIDagg6_SeuratPipeline_FF_v1.0.R
+#now we load a newly saved data which has more features
+CVIDagg6.int<-readRDS(file=here("Output","CVIDagg6_MNN_2K.rds"))
 
 #########################
 #	do marker based annotation
@@ -47,13 +47,13 @@ cvid.combined<-merge(CVIDagg6.Low.Cluster2,
 #scCATCH first
 #now we need to make a maker list (cellmatch)
 
-obj <- createscCATCH(data = cvid.combined[['RNA']]@data, 
-		cluster = as.character(Idents(cvid.combined)))
+obj <- createscCATCH(data = CVIDagg6.int[["RNA"]]@data, 
+		cluster = as.character(CVIDagg6.int$seurat_clusters))
 obj <- findmarkergene(object = obj, species = "Human", marker = cellmatch, tissue = "Peripheral blood")
 
 obj <- findcelltype(object = obj)
 obj@celltype %>% View("m")
-
+saveRDS(file=here("Output","scCATCH_annotation.Rds"),obj)
 #scina
 #need to make a signature (markers)
 signature.db<- cellmatch %>% select(-pmid) %>%
@@ -92,7 +92,8 @@ s<-signatures.list[unlist(
 lapply(s, length)
 #s<-s[1:10]
 #get exp
-exp<-cvid.combined[['RNA']]@data
+#exp<-cvid.combined[['RNA']]@data
+exp<-CVIDagg6.int[['RNA']]@data
 exp<-as.matrix(exp)
 results = SCINA(exp, s, max_iter = 100, convergence_n = 10, 
     convergence_rate = 0.999, sensitivity_cutoff = 0.9, 
@@ -119,9 +120,9 @@ plotheat.SCINA(exp, results, s.rm)
 #           which one gives the most reasonable assignment.
 hpca.se <- HumanPrimaryCellAtlasData()
 imm.ref<-celldex::MonacoImmuneData()
-
+DefaultAssay(CVIDagg6.int)<-"RNA"
 #turn into a sce to do singleR
-cvid6.c2<-as.SingleCellExperiment(CVIDagg6.Low.Cluster2) #cvid.combined)
+cvid6.c2<-as.SingleCellExperiment(CVIDagg6.int) #cvid.combined)
 
 #run assignment
 pred.cvid6.c2 <- SingleR(test = cvid6.c2, ref = hpca.se, assay.type.test=1,
@@ -129,11 +130,29 @@ pred.cvid6.c2 <- SingleR(test = cvid6.c2, ref = hpca.se, assay.type.test=1,
 
 pred.cvid6.c2.fine <- SingleR(test = cvid6.c2, ref = hpca.se, assay.type.test=1,
     labels = hpca.se$label.fine)
+#plot to see the quality of prediction
+#ref:http://bioconductor.org/books/3.15/OSCA.basic/cell-type-annotation.html
+plotScoreHeatmap(pred.cvid6.c2)
+plotScoreHeatmap(pred.cvid6.c2.fine)
 
 table(pred.cvid6.c2.fine$labels) %>% View("m3")
+table(pred.cvid6.c2$labels) %>% View("m3")
 #now add back the labels to the original seurat object
 
-CVIDagg6.Low.Cluster2@meta.data$label.main<-pred.cvid6.c2[rownames(CVIDagg6.Low.Cluster2@meta.data),"labels"]
-CVIDagg6.Low.Cluster2@meta.data$label.fine<-pred.cvid6.c2.fine[rownames(CVIDagg6.Low.Cluster2@meta.data),"labels"]
+CVIDagg6.int@meta.data$label.main<-pred.cvid6.c2[rownames(CVIDagg6.int@meta.data),"labels"]
+CVIDagg6.int@meta.data$label.fine<-pred.cvid6.c2.fine[rownames(CVIDagg6.int@meta.data),"labels"]
+
+library(pheatmap)
+#ref http://bioconductor.org/books/3.15/OSCA.basic/cell-type-annotation.html
+tab <- table(Assigned=pred.cvid6.c2$labels, Cluster=CVIDagg6.int@meta.data$seurat_clusters))
+pheatmap(log2(tab+10), color=colorRampPalette(c("white", "blue"))(101))
+
 
 #do this to other 2 clusters please!!!
+##############################################
+#
+#   NOTE: check the .Rmd file for the functions/code 
+#file:///home/feng/Feng/hg/scravid/Output/annotation_v1.1_allNew.Rmd
+# it combines all methods, singleR and scDeepSort
+################################################
+

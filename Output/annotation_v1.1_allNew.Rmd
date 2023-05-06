@@ -1,0 +1,277 @@
+---
+title: "scRNASeq data analysis-batch correction/cell cycle"
+author: "Feng, Feng"
+date: "`r Sys.Date()`"
+header-includes:
+    - \usepackage{setspace}\doublespacing
+output: 
+    pdf_document:
+        fig_caption: yes
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = FALSE,
+  comment = "#>",
+  tidy=FALSE,
+  engine='R'
+)
+```
+# 1. Aims
+- Rerun and experiment with different cell type annotation methods,
+	+ marker-based annotation on clusters -- scCATCH
+	+ marker-based annotation on single cell with unknown cell type allowed -- scina
+	+ reference-based annotation on single cell -- singleR
+
+- Annotate the newly generated data set with all six CVID subjects and
+also clustered with the MNN algorithm. We want to put special focus on 
+Clusters that are unique to CVID patients
+
+# 2. Data input
+We load the saved data set with new MNN algorithm. As we know, we will 
+use raw data instead of corrected data, since the latter were 
+not intended for gene based analysis.
+
+
+```{r loadData, message=FALSE}
+library(scCATCH)
+library(SCINA)
+library(here)
+library(dplyr)
+library(Seurat)
+
+library(SingleR)
+library(celldex)
+library(SingleCellExperiment)
+library(ggplot2)
+
+#load data
+
+data.dir<-"Data"
+
+#cluster 2, scRNASeq data.
+#load(here(data.dir,"scObject.intergrateMNN.RData"))
+		#loaded 
+		# the data were generated in ../../scravid2/CVIDagg6_SeuratPipeline_FF_v1.0.R
+#now we load a newly saved data which has more features
+CVIDagg6.int<-readRDS(file=here("Output","CVIDagg6_MNN_2K.rds"))
+```
+
+Now we try first the marker based annoation on clusters
+```{r scCATCH, eval=F}
+#DON'T run this, since it takes too much memory
+
+#########################
+#	do marker based annotation
+#########################
+#scCATCH first
+#now we need to make a maker list (cellmatch)
+
+obj <- createscCATCH(data = CVIDagg6.int[["RNA"]]@data, 
+		cluster = as.character(CVIDagg6.int$seurat_clusters))
+obj <- findmarkergene(object = obj, species = "Human", marker = cellmatch, tissue = "Peripheral blood")
+
+```
+
+```{r scCATCHLoad}
+obj<-readRDS(file=here("Output","scCATCH_annotation.Rds"))
+obj <- findcelltype(object = obj)
+head(obj@celltype)# %>% View("m")
+```
+
+Secondly, we try scina, a marker-based annoation on cluster and allowing
+unknown cell type.
+
+```{r scina}
+#scina
+#need to make a signature (markers)
+signature.db<- cellmatch %>% select(-pmid) %>%
+	filter(species=="Human", tissue=="Peripheral blood",
+		cancer=="Normal",condition=="Normal cell"#,
+		#resource=="Single-cell sequencing"
+		) %>% #filter(celltype=="B Cell")
+		group_by(celltype, subtype1, subtype2, subtype3) %>%
+		reframe(gene) 
+signature.db <- signature.db %>% 
+		mutate(celltype.new=paste(celltype,subtype1, subtype2, subtype3)) %>%
+		mutate(celltype.new=gsub(x=celltype.new,
+	pattern=" NA",replacement="", fixed=T))		
+
+#make celltypes by combining the 
+ celltypes<-unique(signature.db$celltype.new)
+
+signatures.list<-list()
+for(i in 1:length(celltypes))
+{
+	#get the list of all markers
+	celltype.name<-celltypes[i]
+	
+	temp<-
+		signature.db %>% filter(celltype.new==celltype.name)
+
+	signatures.list[[ celltype.name ]]<-temp$gene
+
+}
+
+signatures.list<-lapply(signatures.list, FUN=unique)
+#s<-list(signatures.list[[1]], signatures.list[[7]], signatures.list[[8]])
+
+s<-signatures.list[unlist(
+		lapply(signatures.list, function(x) {length(x)>4}) )  ]
+lapply(s, length)
+#s<-s[1:10]
+#get exp
+#exp<-cvid.combined[['RNA']]@data
+exp<-CVIDagg6.int[['RNA']]@data
+exp<-as.matrix(exp)
+results = SCINA(exp, s, max_iter = 100, convergence_n = 10, 
+    convergence_rate = 0.999, sensitivity_cutoff = 0.9, 
+    rm_overlap=FALSE, allow_unknown=TRUE, log_file='SCINA.log')
+
+head(results$cell_labels)
+#show summary of the labels. still not correct
+table(results$cell_labels) %>% print()
+#View(results$probabilities)
+
+# get rid of the signature genes not in the exp expression array
+s.rm<-lapply(s, FUN=function(x){
+		x<-x[is.element(x,rownames(exp))]
+	})
+```
+
+We can also visualize the result, but it takes very long...
+
+```{r scinaheat, eval=F}
+##BE CAREFUL!! this will take very long.
+plotheat.SCINA(exp, results, s.rm)
+```
+
+Next, we want to do singleR, which is reference-based.
+
+
+```{r singleR}
+
+
+#doing singleR
+
+#in this celldex package there are a bunch of reference data set.
+#           see http://bioconductor.org/packages/release/data/experiment/vignettes/celldex/inst/doc/userguide.html
+#           for more information. Please at least try two of the below to see 
+#           which one gives the most reasonable assignment.
+hpca.se <- HumanPrimaryCellAtlasData()
+imm.ref<-celldex::MonacoImmuneData()
+DefaultAssay(CVIDagg6.int)<-"RNA"
+#turn into a sce to do singleR
+cvid6.c2<-as.SingleCellExperiment(CVIDagg6.int) #cvid.combined)
+
+#run assignment
+pred.cvid6.c2 <- SingleR(test = cvid6.c2, ref = hpca.se, assay.type.test=1,
+    labels = hpca.se$label.main)
+
+pred.cvid6.c2.fine <- SingleR(test = cvid6.c2, ref = hpca.se, assay.type.test=1,
+    labels = hpca.se$label.fine)
+
+table(pred.cvid6.c2.fine$labels) %>% print()
+table(pred.cvid6.c2$labels) %>% print()
+#now add back the labels to the original seurat object
+
+CVIDagg6.int@meta.data$label.main<-pred.cvid6.c2[rownames(CVIDagg6.int@meta.data),"labels"]
+CVIDagg6.int@meta.data$label.fine<-pred.cvid6.c2.fine[rownames(CVIDagg6.int@meta.data),"labels"]
+
+#do this to other 2 clusters please!!!
+#saveRDS(file=here("Output","CVIDagg6.int_2K_singleR.Rds"),CVIDagg6.int)
+```
+
+Lastly, we would like to try the machine learning way, scDeepSort, with python
+
+```{r scDeep}
+library(reticulate)
+library(here)
+library(Seurat)
+library(dplyr)
+
+###show configuration
+py_config()
+
+##load module and run demo
+ds<-import("deepsort")
+
+data.dir<-"Data"
+geneinfo<-readRDS(here(data.dir,"geneinfo.rds"))
+
+geneinfo <- geneinfo %>% filter(species=="Human")
+
+cvid.c2<- CVIDagg6.int[['RNA']]@data
+
+# revising gene symbols
+genename<- rownames(cvid.c2)
+genename1<- genename[genename %in% geneinfo$Symbol]
+genename2<- genename[!genename %in% geneinfo$Symbol]
+genename3<- genename2[genename2 %in% geneinfo$Synonyms]
+genename4<- rep('NA',length(genename3))
+for (i in 1:length(genename3)) {
+  d1<- geneinfo[geneinfo$Synonyms == genename3[i],]$Symbol
+  if(length(d1) == 1){
+    genename4[i]<- d1
+  }
+}
+genename3<- c(genename1,genename3)
+genename4<- c(genename1,genename4)
+genedata<- data.frame(raw_name = genename3,new_name = genename4,stringsAsFactors = F)
+genedata<- genedata[!genedata$new_name == 'NA',]
+genedata1<- as.data.frame(table(genedata$new_name),stringsAsFactors = F)
+genedata1<- genedata1[genedata1$Freq == 1,]
+genedata<- genedata[genedata$new_name %in% genedata1$Var1,]
+cvid.c2<- cvid.c2[genedata$raw_name,]
+all(rownames(cvid.c2) == genedata$raw_name)
+rownames(cvid.c2)<- genedata$new_name
+all(rownames(cvid.c2) == genedata$new_name)
+all(rownames(cvid.c2) %in% geneinfo$Symbol)
+
+cvid.c2<- as.matrix(cvid.c2)
+write.csv(cvid.c2,file = here(data.dir,'cvid.c2_data.csv'))
+
+#start calling 
+
+model <- ds$DeepSortPredictor(species='human',
+                          tissue='Blood')
+test_files = here(data.dir,'cvid.c2_data.csv')
+model$predict(test_files, save_path=NULL)->results
+table(results$cell_type)
+rownames(results)<-results$index
+
+CVIDagg6.int@meta.data$label.deep<-results[rownames(CVIDagg6.int@meta.data),"cell_type"]
+CVIDagg6.int@meta.data$subLabel.deep<-results[rownames(CVIDagg6.int@meta.data),"cell_subtype"]
+
+#save
+#saveRDS(file=here("Output","CVIDagg6.int_2K_singleR.Rds"),CVIDagg6.int)
+```
+
+Now we want to compare singleR with scDeep.
+
+```{r compare, fig.width=8, fig.height=12}
+CVIDagg6.int@meta.data[CVIDagg6.int@meta.data$label.main=='B_cell',"label.main"]='B cell'
+sum(CVIDagg6.int@meta.data$label.deep==CVIDagg6.int@meta.data$label.main)
+
+DimPlot(CVIDagg6.int, reduction = "umap", label=T, ncol=1, group.by=c("label.main"))+
+    theme(legend.position="bottom")
+
+DimPlot(CVIDagg6.int, reduction = "umap", label=T, ncol=1, group.by=c("label.fine"))+
+    theme(legend.position="bottom")
+DimPlot(CVIDagg6.int, reduction = "umap", label=T, ncol=1, group.by=c("seurat_clusters"))+
+    theme(legend.position="bottom")
+
+png(file=here("Output","CVIDagg6_annotated.png"),width=1200,
+height=1000)
+DimPlot(CVIDagg6.int, reduction = "umap", label=T,ncol=2, group.by=c("label.main","label.fine","label.deep", "seurat_clusters"))
+
+dev.off()
+
+```
+
+DONE!!!
+
+
+```{r }
+sessionInfo()
+```

@@ -1,0 +1,169 @@
+---
+title: "scRNASeq data analysis-cell type summary"
+author: "Feng, Feng"
+date: "`r Sys.Date()`"
+header-includes:
+    - \usepackage{setspace}\doublespacing
+output: 
+    pdf_document:
+        fig_caption: yes
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = FALSE,
+  comment = "#>",
+  tidy=FALSE,
+  engine='R'
+)
+```
+# 1. Purpose
+- In this file, we summarize the results about the cell types
+of the clusters. 
+
+- Pick the clusters of single cells to go on further analysis	
+
+# 2. Data input
+
+The data in this analysis assume the following steps have been carried out.
+	+ Normalization
+	+ MNN integration
+	+ PCA
+	+ Clusters
+	+ Cell type annotation. For the annotation, we tried a couple of different methods, cell marker-based and reference-based. It turned out that cell-marker-based is not very "trustable", so we go with the reference-based method. Here two methods, singleR and scDeepSort, were tested, and they agree quite well. SingleR works better single it provide more detailed labels. (see a different Rmd file for detail)
+
+** Note **: to run this Rmd file, you need to revise the data
+directory information in the following section.
+
+Also I will upload all the data to the Dropbox account (link to be added later)
+
+```{r loadLib, eval=T, message=F}  
+#Note: the original code were in file:///home/feng/Feng/hg/scravid2/CVIDagg6_SeuratPipeline_FF_v1.0.R
+#library
+library(Seurat)
+library(dplyr)
+library(Matrix)
+library(gdata)
+library(patchwork)
+library(cowplot)
+library(stringr)
+library(ggpubr)
+library(SeuratWrappers)
+
+library(here)
+
+library(SingleR)
+library(celldex)
+library(SingleCellExperiment)
+
+
+  #load data
+  
+
+data.dir<-"Data"
+
+#now we load a newly saved data which has more features
+CVIDagg6.int<-readRDS(file=here("Output","CVIDagg6.int_2K_singleR.Rds"))
+
+```
+
+First, let's show the clusters by subjects to show what clusters are special to CVID patients.
+
+``` {r clusters}
+mdat<-CVIDagg6.int@meta.data
+mdat.sub.cluster<-aggregate(mdat$sub, by=list(mdat$sub, mdat$cells, mdat$seurat_clusters), FUN=length, drop=F)
+mdat.sub.cluster[is.na(mdat.sub.cluster$x),"x"]<-0
+names(mdat.sub.cluster)<-c("sub", "cells","clusters","Freq")
+mdat.sub.cluster$CVID<-"CVID"
+
+mdat.sub.cluster[mdat.sub.cluster$sub==1,"CVID"]<-"HC"
+mdat.sub.cluster[mdat.sub.cluster$sub==4,"CVID"]<-"HC"
+mdat.sub.cluster[mdat.sub.cluster$sub==6,"CVID"]<-"HC"
+
+#now we need to draw a figure different showing stacked for each cluster
+# show the composition of the cluster.
+
+ggplot(mdat.sub.cluster, 
+		aes(fill=CVID, y=Freq, x=clusters)) + 
+    geom_bar(position="fill", stat="identity")
+
+ggplot(mdat.sub.cluster, 
+		aes(fill=cells, y=Freq, x=clusters)) + 
+    geom_bar(position="fill", stat="identity")
+
+
+```
+
+It is obvious that cluster 2, 11, 13, 15, 18, 19, 21 and 24 are more enriched in CVID patients. Cluster 34 are also very interesting but it is the last one, meaning there are not many cells in it. For now we ignore Cluster 34 and focus on the ones that are big and specific to be in CVID patients. Cluster 11 and 19 are different from others enriched in CVID subjects. We will come back to them in the later sections.
+
+Note: Erik, could you please run a stat to see what portion each above clusters takes. We want to focus on large clusters.
+
+Now, we want to look at the cell type annotation results for the data. Again, we trust more on singleR results, reference based cell type annotation.
+
+We figure show the summary for the cell types 
+``` {r typeSummary1}
+cat("Summary for the labels of all cells:\n")
+table(CVIDagg6.int@meta.data$label.main)
+
+cat("Summary for the fine lables of all cells:\n")
+table(CVIDagg6.int@meta.data$label.fine)
+
+```
+``` {r typeSummary2}
+cat("Summary for the labels of all cells:\n")
+table(CVIDagg6.int@meta.data$label.main,CVIDagg6.int@meta.data$seurat_clusters)
+
+cat("Summary for the fine lables of all cells:\n")
+table(CVIDagg6.int@meta.data$label.fine,CVIDagg6.int@meta.data$seurat_clusters)
+
+```
+
+To visualize,
+```{r visualize, dpi=200, fig.retina=3, eval=T}
+
+DimPlot(CVIDagg6.int, reduction = "umap", label=T, ncol=1, group.by=c("label.main"))+ #,"label.fine", "seurat_clusters"))+
+theme(legend.position="bottom")
+
+DimPlot(CVIDagg6.int, reduction = "umap", label=T, ncol=1, group.by=c("label.fine"))+ #,"label.fine", "seurat_clusters"))+
+theme(legend.position="bottom")
+
+DimPlot(CVIDagg6.int, reduction = "umap", label=T, ncol=1, group.by=c("seurat_clusters"))+ #,"label.fine", "seurat_clusters"))+
+theme(legend.position="bottom")
+```
+It is very interesting. It seems that the cluster 2, 13,15,18, 21 and 24 are B cells, cluster 11 and 19 are not B cells(???). 
+But why cluster 21 and 24 are only found in CVID, but not healthy?????
+
+I also further show some of the B cell markers in the clusters.
+
+First show the general B markers 
+```{r markerGeneneral,fig.height=12}
+DefaultAssay(CVIDagg6.int) <- "RNA"
+VlnPlot(CVIDagg6.int, c("CD19", "MS4A1", "CD27", 
+		 "CD79A"), ncol = 1)#+xlab("General B cell marker")
+```
+
+Naive and transition markers
+```{r naiveTrans,fig.height=18}
+VlnPlot(CVIDagg6.int, c("CD38", "CR2", "CD24", 
+		 "MME", "IGHD","IGHM","SDC1" 
+		), ncol = 1)
+
+```
+
+IG markers
+```{r IGs,fig.height=24}
+VlnPlot(CVIDagg6.int, c("IGHG1","IGHG2","IGHG3","IGHG4",
+		"IGHA1","IGHA2","IGHE", "IGHD", "IGHM" 
+		), ncol = 1)
+```
+
+We could see cluster 2, 11, 13, 15, 18, 19, 21 and 24 are special.
+
+Erik, could you please run the function to identify the differential expressed markers for all individual clusters??
+
+
+Done!!
+
+```{r sessioninfo}
+sessionInfo()
+```
