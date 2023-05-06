@@ -33,7 +33,7 @@ use raw data instead of corrected data, since the latter were
 not intended for gene based analysis.
 
 
-```{r loadData}
+```{r loadData, message=FALSE}
 library(scCATCH)
 library(SCINA)
 library(here)
@@ -43,6 +43,7 @@ library(Seurat)
 library(SingleR)
 library(celldex)
 library(SingleCellExperiment)
+library(ggplot2)
 
 #load data
 
@@ -243,16 +244,22 @@ CVIDagg6.int@meta.data$label.deep<-results[rownames(CVIDagg6.int@meta.data),"cel
 CVIDagg6.int@meta.data$subLabel.deep<-results[rownames(CVIDagg6.int@meta.data),"cell_subtype"]
 
 #save
-saveRDS(file=here("Output","CVIDagg6.int_2K_singleR.Rds"),CVIDagg6.int)
+#saveRDS(file=here("Output","CVIDagg6.int_2K_singleR.Rds"),CVIDagg6.int)
 ```
 
 Now we want to compare singleR with scDeep.
 
-```{r compare}
+```{r compare, fig.width=8, fig.height=12}
 CVIDagg6.int@meta.data[CVIDagg6.int@meta.data$label.main=='B_cell',"label.main"]='B cell'
 sum(CVIDagg6.int@meta.data$label.deep==CVIDagg6.int@meta.data$label.main)
 
-DimPlot(CVIDagg6.int, reduction = "umap", label=T, ncol=2, group.by=c("label.main","label.fine","label.deep", "seurat_clusters"))
+DimPlot(CVIDagg6.int, reduction = "umap", label=T, ncol=1, group.by=c("label.main"))+
+    theme(legend.position="bottom")
+
+DimPlot(CVIDagg6.int, reduction = "umap", label=T, ncol=1, group.by=c("label.fine"))+
+    theme(legend.position="bottom")
+DimPlot(CVIDagg6.int, reduction = "umap", label=T, ncol=1, group.by=c("seurat_clusters"))+
+    theme(legend.position="bottom")
 
 png(file=here("Output","CVIDagg6_annotated.png"),width=1200,
 height=1000)

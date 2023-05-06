@@ -1,4 +1,6 @@
 # R code to do cell type annotation
+#  -- NOTE: see the 
+#"file:///home/feng/Feng/hg/scravid/Output/annotation_v1.1_allNew.Rmd"
 # used to annotate the newly clustered data
 # (4/25/2023) for all clusters
 #  The data were generated in 
@@ -128,6 +130,10 @@ pred.cvid6.c2 <- SingleR(test = cvid6.c2, ref = hpca.se, assay.type.test=1,
 
 pred.cvid6.c2.fine <- SingleR(test = cvid6.c2, ref = hpca.se, assay.type.test=1,
     labels = hpca.se$label.fine)
+#plot to see the quality of prediction
+#ref:http://bioconductor.org/books/3.15/OSCA.basic/cell-type-annotation.html
+plotScoreHeatmap(pred.cvid6.c2)
+plotScoreHeatmap(pred.cvid6.c2.fine)
 
 table(pred.cvid6.c2.fine$labels) %>% View("m3")
 table(pred.cvid6.c2$labels) %>% View("m3")
@@ -136,4 +142,17 @@ table(pred.cvid6.c2$labels) %>% View("m3")
 CVIDagg6.int@meta.data$label.main<-pred.cvid6.c2[rownames(CVIDagg6.int@meta.data),"labels"]
 CVIDagg6.int@meta.data$label.fine<-pred.cvid6.c2.fine[rownames(CVIDagg6.int@meta.data),"labels"]
 
+library(pheatmap)
+#ref http://bioconductor.org/books/3.15/OSCA.basic/cell-type-annotation.html
+tab <- table(Assigned=pred.cvid6.c2$labels, Cluster=CVIDagg6.int@meta.data$seurat_clusters))
+pheatmap(log2(tab+10), color=colorRampPalette(c("white", "blue"))(101))
+
+
 #do this to other 2 clusters please!!!
+##############################################
+#
+#   NOTE: check the .Rmd file for the functions/code 
+#file:///home/feng/Feng/hg/scravid/Output/annotation_v1.1_allNew.Rmd
+# it combines all methods, singleR and scDeepSort
+################################################
+
