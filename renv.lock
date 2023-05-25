@@ -2366,6 +2366,18 @@
         "numDeriv"
       ]
     },
+    "pheatmap": {
+      "Package": "pheatmap",
+      "Version": "1.0.12",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "db1fb0021811b6693741325bbe916e58",
+      "Requirements": [
+        "RColorBrewer",
+        "gtable",
+        "scales"
+      ]
+    },
     "pillar": {
       "Package": "pillar",
       "Version": "1.8.1",

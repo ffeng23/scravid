@@ -144,7 +144,7 @@ CVIDagg6.int@meta.data$label.fine<-pred.cvid6.c2.fine[rownames(CVIDagg6.int@meta
 
 library(pheatmap)
 #ref http://bioconductor.org/books/3.15/OSCA.basic/cell-type-annotation.html
-tab <- table(Assigned=pred.cvid6.c2$labels, Cluster=CVIDagg6.int@meta.data$seurat_clusters))
+tab <- table(Assigned=pred.cvid6.c2$labels, Cluster=CVIDagg6.int@meta.data$seurat_clusters)
 pheatmap(log2(tab+10), color=colorRampPalette(c("white", "blue"))(101))
 
 
