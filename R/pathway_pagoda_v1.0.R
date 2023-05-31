@@ -15,7 +15,8 @@ library(Seurat)
 
 data.dir<-"Data"
 
-cvid.combined<-readRDS(file=here("Output","CVIDagg6_MNN_2K.rds"))
+#cvid.combined<-readRDS(file=here("Output","CVIDagg6_MNN_2K.rds"))
+cvid.combined<-readRDS(file=here("Output","CVIDagg6.int_2K_singleR.Rds"))
 DefaultAssay(cvid.combined)<-"RNA"
 mcd<-GetAssayData(cvid.combined, slot="counts")
 mcd<-as.matrix(mcd)
@@ -39,6 +40,12 @@ gc()
 #l2cols <- c("coral4", "olivedrab3", "skyblue2", "slateblue3")[as.integer(factor(x, levels = c("NPC", "GW16", "GW21", "GW21+3")))]
 
 #start fitting for error model!!!
+#newly updated 5/31/2023
 #
-knn <- knn.error.models(cd, k = ncol(cd)/30, n.cores = 3, min.count.threshold = 2, min.nonfailed = 5, 
-		save.model.plots=T,max.model.plots = 2, verbose=4)
+system.time(
+knn <- knn.error.models(cd, k = ncol(cd)/50, 
+		n.cores = 30, #running parallel::detectCores() to see how many cores on your machine
+		 min.count.threshold = 1,#this has to be 1 for umi counts (check the help page on scde website) 
+		 min.nonfailed = 50, 
+		save.model.plots=T,max.model.plots = 4, verbose=4)
+)
