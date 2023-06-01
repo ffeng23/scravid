@@ -4,3 +4,11 @@ R 4.2.2
 P52S linux
 Debian 10
 date 2/20/2023
+
+
+#######
+linux dell desktop sensei
+ubuntu
+R 4.2.2
+
+conda env = R_env

@@ -15,7 +15,10 @@ library(SeuratObject)
 # for scde/pagoda we need raw count (integer counts)
 
 data.dir<-"Data"
+
 cat("Read data..........\n")
+
+#cvid.combined<-readRDS(file=here("Output","CVIDagg6_MNN_2K.rds"))
 cvid.combined<-readRDS(file=here("Output","CVIDagg6.int_2K_singleR.Rds"))
 DefaultAssay(cvid.combined)<-"RNA"
 
@@ -43,6 +46,7 @@ cat("Running error model estimating........\n")
 #l2cols <- c("coral4", "olivedrab3", "skyblue2", "slateblue3")[as.integer(factor(x, levels = c("NPC", "GW16", "GW21", "GW21+3")))]
 
 #start fitting for error model!!!
+#newly updated 5/31/2023
 #
 system.time(
 knn <- knn.error.models(cd, k = ncol(cd)/80, n.cores = 40, 
