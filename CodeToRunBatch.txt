@@ -1,0 +1,5 @@
+# the code to run pathway analysis on theano.
+
+nohup R CMD BATCH R/pathway_pagoda_v1.0.R &
+
+      	## note: need to have the data in the Output folder
