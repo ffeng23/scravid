@@ -15,3 +15,12 @@ In this project, we do cell type annotation using a few different methods.
 
 ## added the code to run batch correction with MNN (batchelor)
 The code were originally in ../scravid2. Please check that folder for some of results and figures.
+
+
+## GO2MSIG
+https://bio.tools/go2msig
+
+http://www.bioinformatics.org/go2msig/
+
+## annotation dbi
+https://hbctraining.github.io/DGE_workshop_salmon_online/lessons/AnnotationDbi_lesson.html

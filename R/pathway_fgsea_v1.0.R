@@ -38,15 +38,22 @@ head(de.cvid)
 dplyr::count(de.cvid, group)
 #
 
+#show contents of database
+msigdbr_collections()
+#https://cran.r-project.org/web/packages/msigdbr/vignettes/msigdbr-intro.html
+#https://www.gsea-msigdb.org/gsea/msigdb/human/genesets.jsp?collection=C8
+
 #human gene, with category C7 is immunological genes
 # C7 5219 gene sets in total
-m_df<- msigdbr(species = "Homo sapiens", category = "C7")
+m_df<- msigdbr(species = "Homo sapiens", category = "C5", 
+    subcategory="BP")
+
 
 fgsea_sets<- m_df %>% split(x = .$gene_symbol, f = .$gs_name)
 
 head(fgsea_sets)
 
-fgsea_sets$GSE11057_NAIVE_VS_MEMORY_CD4_TCELL_UP
+fgsea_sets$GOBP_REGULATION_OF_B_CELL_PROLIFERATION
 
 #get a rank so to do gsea
 # select only the feature and auc columns for fgsea, which statistics to use is an open question
@@ -83,13 +90,13 @@ head(n= 20), aes(reorder(pathway, NES), NES)) +
   geom_col(aes(fill= NES < 7.5)) +
   coord_flip() +
   labs(x="Pathway", y="Normalized Enrichment Score",
-       title="Hallmark pathways NES from GSEA") + 
+       title="GOBP pathways NES from GSEA") + 
   theme_minimal()
 
-plotEnrichment(fgsea_sets[["GSE10325_CD4_TCELL_VS_MYELOID_UP"]],
-               ranks) + labs(title="GSE10325 CD4 TCELL VS MYELOID UP")
+plotEnrichment(fgsea_sets[["GOBP_REGULATION_OF_B_CELL_PROLIFERATION"]],
+               ranks) + labs(title="B cell proliferation")
 
-### doing cell population differences
+### doing cell population CD38+/m/- differences
 de.cells <- wilcoxauc(cvid.combined, group_by='cells')
 head(de.cells)
 
@@ -97,7 +104,7 @@ dplyr::count(de.cells, group)
 #
 # select only the feature and auc columns for fgsea, which statistics to use is an open question
 cluster0.genes<- de.cells %>%
-  dplyr::filter(group == "CD38_high") %>%
+  dplyr::filter(group == "CD38_low") %>%
   arrange(desc(auc)) %>% 
   dplyr::select(feature, auc)
 
@@ -132,8 +139,8 @@ head(n= 20), aes(reorder(pathway, NES), NES)) +
        title="Hallmark pathways NES from GSEA") + 
   theme_minimal()
 
-plotEnrichment(fgsea_sets[["GSE22886_IGG_IGA_MEMORY_BCELL_VS_BM_PLASMA_CELL_UP"]],
-               ranks) + labs(title="GSE22886_IGG_IGA_MEMORY_BCELL_VS_BM_PLASMA_CELL_UP")
+plotEnrichment(fgsea_sets[["GOBP_REGULATION_OF_B_CELL_PROLIFERATION"]],
+               ranks) + labs(title="GOBP_REGULATION_OF_B_CELL_PROLIFERATION_UP")
 
 
 ########now we need to do clusters.
@@ -181,5 +188,5 @@ head(n= 20), aes(reorder(pathway, NES), NES)) +
        title="Hallmark pathways NES from GSEA") + 
   theme_minimal()
 
-plotEnrichment(fgsea_sets[["GSE22886_IGG_IGA_MEMORY_BCELL_VS_BM_PLASMA_CELL_UP"]],
-               ranks) + labs(title="GSE22886_IGG_IGA_MEMORY_BCELL_VS_BM_PLASMA_CELL_UP")
+plotEnrichment(fgsea_sets[["GOBP_REGULATION_OF_B_CELL_PROLIFERATION"]],
+               ranks) + labs(title="GOBP_REGULATION_OF_B_CELL_PROLIFERATION_UP")
