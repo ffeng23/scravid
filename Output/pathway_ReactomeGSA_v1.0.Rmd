@@ -26,7 +26,7 @@ We can run more comparison on the scores. It applies the ssGSA to obtain
 the score/stat for each cluster. It works perfectly on Seurat objects.
 
 
-```{r libraryloading, 
+```{r libraryloading, message=F} 
 #R code to do pathway analysis using ReactomeGSA 
 #
 #--- started 5/23/2023
