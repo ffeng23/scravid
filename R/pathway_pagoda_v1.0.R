@@ -34,7 +34,7 @@ mcd<-apply(mcd,2,
 	function(x) {storage.mode(x) <- 'integer'; x})
 cat("Clean up the data counts......\n")
 # get data counts matrix
-cd <- clean.counts(mcd)
+cd <- clean.counts(mcd)#, min.lib.size=2500, min.detected=50)
 # check the final dimensions of the read count matrix
 dim(cd)
 
@@ -50,10 +50,10 @@ cat("Running error model estimating........\n")
 #newly updated 5/31/2023
 #
 system.time(
-knn <- knn.error.models(cd, k = ncol(cd)/80, n.cores = 40, 
+knn <- knn.error.models(cd, k = ncol(cd)/10, n.cores = 5, 
 		min.count.threshold = 1,
 		min.size.entries =2000, 
-		min.nonfailed = 50, 
+		min.nonfailed = 5, 
 		save.model.plots=T,max.model.plots = 2, verbose=4)
 )
 

@@ -14,3 +14,12 @@ $xp: wPCA results, $weight, $rotation, $scores, $var, $sd and $total_variance. $
 $z  : this is not z. this n randomized run of pca based on sampled gene from the matrix with same number of genes as $ngene
         this is sd. Not z values.
 $n : number of genes in the pathway
+
+
+aboupt top.aspects
+
+return a df,
+socre is the observed/expect
+z is the z score about the 
+npc is the number of PCs
+p value is the variance of PC (eigen value) on the wishart distribution.
