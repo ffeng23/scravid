@@ -101,14 +101,14 @@ cat("Running error model estimating cd38 mid cells........\n")
 #newly updated 5/31/2023
 #
 system.time(
-<<<<<<< HEAD
-knn <- knn.error.models(cd, k = ncol(cd)/50, 
-		n.cores = 9, #running parallel::detectCores() to see how many cores on your machine
-		 min.count.threshold = 1,#this has to be 1 for umi counts (check the help page on scde website) 
-		 min.nonfailed = 50, 
-		save.model.plots=T,max.model.plots = 4, verbose=4)
-)
-=======
+#<<<<<<< HEAD
+#knn <- knn.error.models(cd, k = ncol(cd)/50, 
+#		n.cores = 9, #running parallel::detectCores() to see how many cores on your machine
+#		 min.count.threshold = 1,#this has to be 1 for umi counts (check the help page on scde website) 
+#		 min.nonfailed = 50, 
+#		save.model.plots=T,max.model.plots = 4, verbose=4)
+#)
+#=======
 
 knn <- knn.error.models(cd, k = ncol(cd)/15, n.cores = 10, 
 		min.count.threshold = 1,
@@ -169,4 +169,4 @@ saveRDS(file=here("Output","knn.error.models_3rd_cd38low.Rds"),knn)
 cat("Done.........!!\n")
 
 
->>>>>>> 8ce790bbb3e16e497f63a03c65e082091d01e539
+#>>>>>>> 8ce790bbb3e16e497f63a03c65e082091d01e539

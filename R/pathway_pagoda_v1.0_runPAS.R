@@ -72,15 +72,17 @@ knn<-readRDS(file=here("Output","knn.error.models_1st_allCells.Rds"))
 #start doing the downstream analysis
 # variance normalization
 cat("Start doing varnorm.......\n")
-system.time(
-varinfo <- pagoda.varnorm(knn, counts = cd, trim = 3/ncol(cd), max.adj.var = 5, 
-		n.cores = 4, plot = TRUE)
-)
+#system.time(
+#varinfo <- pagoda.varnorm(knn, counts = cd, trim = 3/ncol(cd), max.adj.var = 5, 
+#		n.cores = 4, plot = TRUE)
+#)
 # list top overdispersed genes
-sort(varinfo$arv, decreasing = TRUE)[1:10]
+#sort(varinfo$arv, decreasing = TRUE)[1:10]
 
-varinfo <- pagoda.subtract.aspect(varinfo, colSums(cd[, rownames(knn)]>0))
-saveRDS(varinfo, file="varinfo_allCells_1st.Rds")
+#varinfo <- pagoda.subtract.aspect(varinfo, colSums(cd[, rownames(knn)]>0))
+#saveRDS(varinfo, file="varinfo_allCells_1st.Rds")
+varinfo<-readRDS(file=here("Output","varinfo_allCells_1st.Rds"))
+
 #doing pca 
 # translate gene names to ids
 ids <- unlist(lapply(mget(rownames(cd), org.Hs.egALIAS2EG, ifnotfound = NA), function(x) x[1]))
@@ -91,11 +93,15 @@ go.env <- lapply(mget(gos.interest, org.Hs.egGO2ALLEGS), function(x) as.characte
 go.env <- clean.gos(go.env) # remove GOs with too few or too many genes
 go.env <- list2env(go.env) # convert to an environment
 
-pwpca <- pagoda.pathway.wPCA(varinfo, go.env, n.components = 1, n.cores = 5)
+pwpca <- pagoda.pathway.wPCA(varinfo, go.env, n.components = 1, n.cores = 19)
 
-df <- pagoda.top.aspects(pwpca, return.table = TRUE, plot = TRUE, z.score = 1.96)
+df <- pagoda.top.aspects(pwpca, return.table = TRUE, plot = F, 
+	z.score = 1.96)
+
+saveRDS(pwpca, file=here("Output","Output_allCells_1st_pwpca.Rds" ))
 
 #gene cluster
-clpca <- pagoda.gene.clusters(varinfo, trim = 7.1/ncol(varinfo$mat), n.clusters = 50, n.cores = 1, plot = TRUE)
+clpca <- pagoda.gene.clusters(varinfo, trim = 7.1/ncol(varinfo$mat), 
+		n.clusters = 100, n.cores = 19, plot = F)
 
-save(pwpca, clpca, file="Output_allCells_1st.RData" )
+saveRDS(clpca, file=here("Output","Output_allCells_1st_clpca.Rds" ))
