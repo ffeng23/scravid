@@ -71,8 +71,11 @@ knn<-readRDS(file=here("Output","knn.error.models_1st_allCells.Rds"))
 
 #start doing the downstream analysis
 # variance normalization
+cat("Start doing varnorm.......\n")
+system.time(
 varinfo <- pagoda.varnorm(knn, counts = cd, trim = 3/ncol(cd), max.adj.var = 5, 
-		n.cores = 1, plot = TRUE)
+		n.cores = 4, plot = TRUE)
+)
 # list top overdispersed genes
 sort(varinfo$arv, decreasing = TRUE)[1:10]
 

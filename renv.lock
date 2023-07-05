@@ -301,6 +301,25 @@
       "Hash": "a774898dbc05ccf03ed4ca93fa7a71f4",
       "Requirements": []
     },
+    "GOfuncR": {
+      "Package": "GOfuncR",
+      "Version": "1.18.0",
+      "Source": "Bioconductor",
+      "git_url": "https://git.bioconductor.org/packages/GOfuncR",
+      "git_branch": "RELEASE_3_16",
+      "git_last_commit": "4918241",
+      "git_last_commit_date": "2022-11-01",
+      "Hash": "5cc7cb92c6640baaaf68615f901ce5f7",
+      "Requirements": [
+        "AnnotationDbi",
+        "GenomicRanges",
+        "IRanges",
+        "Rcpp",
+        "gtools",
+        "mapplots",
+        "vioplot"
+      ]
+    },
     "GenomeInfoDb": {
       "Package": "GenomeInfoDb",
       "Version": "1.34.9",
@@ -2355,6 +2374,14 @@
       "Hash": "7ce2733a9826b3aeb1775d56fd305472",
       "Requirements": []
     },
+    "mapplots": {
+      "Package": "mapplots",
+      "Version": "1.5.1",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "0ce688756a3699eedcd492bfa8e0868e",
+      "Requirements": []
+    },
     "matrixStats": {
       "Package": "matrixStats",
       "Version": "0.63.0",
@@ -3373,6 +3400,14 @@
         "Rcpp"
       ]
     },
+    "sm": {
+      "Package": "sm",
+      "Version": "2.2-5.7.1",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "df47a85320af5f8f3f21249e0d6e6e4a",
+      "Requirements": []
+    },
     "snow": {
       "Package": "snow",
       "Version": "0.4-4",
@@ -3800,6 +3835,17 @@
         "glue",
         "lifecycle",
         "rlang"
+      ]
+    },
+    "vioplot": {
+      "Package": "vioplot",
+      "Version": "0.4.0",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "f86614a60ec30dabe3b654a100cfba0d",
+      "Requirements": [
+        "sm",
+        "zoo"
       ]
     },
     "viridisLite": {
