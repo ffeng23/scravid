@@ -3,6 +3,7 @@
 #--- started 5/23/2023
 
 
+
 library(scde)
 library(here)
 library(dplyr)
@@ -44,7 +45,7 @@ gc()
 #
 system.time(
 knn <- knn.error.models(cd, k = ncol(cd)/50, 
-		n.cores = 30, #running parallel::detectCores() to see how many cores on your machine
+		n.cores = 9, #running parallel::detectCores() to see how many cores on your machine
 		 min.count.threshold = 1,#this has to be 1 for umi counts (check the help page on scde website) 
 		 min.nonfailed = 50, 
 		save.model.plots=T,max.model.plots = 4, verbose=4)
