@@ -103,6 +103,6 @@ saveRDS(pwpca, file=here("Output","Output_allCells_1st_pwpca.Rds" ))
 
 #gene cluster
 clpca <- pagoda.gene.clusters(varinfo, trim = 7.1/ncol(varinfo$mat), 
-		n.clusters = 100, n.cores = 10, plot = F)
+		n.clusters = 100, n.cores = 6, plot = F)
 
 saveRDS(clpca, file=here("Output","Output_allCells_1st_clpca.Rds" ))
