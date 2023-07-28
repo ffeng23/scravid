@@ -48,12 +48,19 @@ msigdbr_collections()
 m_df<- msigdbr(species = "Homo sapiens", category = "C5", 
     subcategory="BP")
 
+#m_df<- msigdbr(species = "Homo sapiens", category = NULL, 
+#    subcategory=NULL)
 
+#pathway_names<-m_df$gs_name
+#nfkb_index<-grep(x=pathway_names, pattern="NFKB",ignore.case=T)
+
+#m_df<-m_df[nfkb_index,]
 fgsea_sets<- m_df %>% split(x = .$gene_symbol, f = .$gs_name)
+
 
 head(fgsea_sets)
 
-fgsea_sets$GOBP_REGULATION_OF_B_CELL_PROLIFERATION
+#fgsea_sets$GOBP_REGULATION_OF_B_CELL_PROLIFERATION
 
 #get a rank so to do gsea
 # select only the feature and auc columns for fgsea, which statistics to use is an open question
@@ -95,6 +102,9 @@ head(n= 20), aes(reorder(pathway, NES), NES)) +
 
 plotEnrichment(fgsea_sets[["GOBP_REGULATION_OF_B_CELL_PROLIFERATION"]],
                ranks) + labs(title="B cell proliferation")
+
+#now try to find NFKB related pathways
+
 
 ### doing cell population CD38+/m/- differences
 de.cells <- wilcoxauc(cvid.combined, group_by='cells')
