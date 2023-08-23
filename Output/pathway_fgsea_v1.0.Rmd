@@ -1,0 +1,282 @@
+---
+title: "GSEA using fgsea and msigdbr"
+author: "Feng, Feng"
+date: "`r Sys.Date()`"
+output:
+  html_document: default
+  pdf_document:
+    fig_caption: yes
+---
+
+
+In this exercise, we run pathway analysis using the GSEA way with
+the fgsea r package and msigdbr database.
+
+The steps are as follows:
+  - run differential analysis using the wilcoxon test, which is the
+    default analysis by the seurat package. We don't call seurat functions
+    since it is very slow. We rely on a different package (presto). 
+    This method runs differential analysis by pooling genes from each single 
+    cell into a "bulk" sample and doing the tests. 
+    This package can do target cell vs non-target cell comparison 
+    automatically (see below). 
+
+  - retrieve gene set from msigdbr (https://www.gsea-msigdb.org/gsea/msigdb/human/genesets.jsp?collection=C8).
+    In msigdbr, we can specify species, category and subcategory for gene sets.
+
+  - Run GSEA (fgsea). 
+
+# 1. Loading libraries.
+We need the following R libraries for this report:
+```{r libraries, eval=T, message=F}
+
+#R code to do pathway analysis using differential 
+#  gene expression and then fgsea 
+#ref: https://crazyhottommy.github.io/scRNA-seq-workshop-Fall-2019/scRNAseq_workshop_3.html#gene_set_enrichment_(gsea)_analysis
+#--- started 5/23/2023
+# ref: https://reactome.org/
+library(here)
+library(dplyr)
+library(org.Hs.eg.db)
+library(Seurat)
+library(ReactomeGSA)
+library(fgsea)
+library(presto)
+library(msigdbr)
+library(ggplot2)
+library(tidyverse)
+```
+
+# 2. start loading data
+
+Here, we load the data from previously processed data with all 
+clusters annotations. Note, we need to set to use the RNA "raw"
+data for this purpose.
+
+```{r loadData}
+data.dir<-"Data"
+
+cvid.combined<-readRDS(file=here("Output","CVIDagg6.int_2K_singleR.Rds"))
+DefaultAssay(cvid.combined)<-"RNA"
+
+#check to make sure the identification is the clusters
+#Idents(cvid.combined)
+ 
+
+```
+
+# 3. analysis
+
+## msigdbr gene sets
+
+We first need to set up gene sets by drawing data from 
+msigdb. 
+
+There are multiple collections in the msigdb database. We can browse 
+them by calling the msigdbr_collections function.
+
+```{r msigdb}
+#show contents of database
+msigdbr_collections()
+#https://cran.r-project.org/web/packages/msigdbr/vignettes/msigdbr-intro.html
+#https://www.gsea-msigdb.org/gsea/msigdb/human/genesets.jsp?collection=C8
+```
+
+It depends on what we want to check. For example, we can first check GO:BP, biological processes.
+
+```{r, msigdb2}
+#human gene, with category C7 is immunological genes
+# C7 5219 gene sets in total
+m_df<- msigdbr(species = "Homo sapiens", category = "C5", 
+    subcategory="BP")
+
+```
+
+Erik, please play with different collections and run analysis. 
+Especially, the Hallmark collection, C2 Biocarta, and KEGG are worth of looking at.
+
+## GSEA between different patients, CVID vs. Healthy control.
+
+```{r Patients}
+de.cvid <- wilcoxauc(cvid.combined, group_by='cvid')
+head(de.cvid)
+
+dplyr::count(de.cvid, group)
+#
+fgsea_sets<- m_df %>% split(x = .$gene_symbol, f = .$gs_name)
+
+head(fgsea_sets)
+
+fgsea_sets$GOBP_REGULATION_OF_B_CELL_PROLIFERATION
+
+```
+
+The hardest problem is what we pick to be the rank of genes for GSEA. 
+"auc" seems a good choice, but it has one draw back: it is positive. 
+We can not tell whether it is up- or down-regulated based on its value alone.
+We might need to use different values as ranks or add a sign to it. (Later)
+
+```{r patients2}
+#get a rank so to do gsea
+# select only the feature and auc columns for fgsea, which statistics to use is an open question
+cluster0.genes<- de.cvid %>%
+  dplyr::filter(group == "CVID") %>%
+  arrange(desc(auc)) %>% 
+  dplyr::select(feature, auc)
+
+
+ranks<- deframe(cluster0.genes)
+
+head(ranks)
+
+fgseaRes<- fgsea(fgsea_sets, stats = ranks,
+		eps=0, scoreType="pos"
+	)#, nperm = 1000)
+
+fgseaResTidy <- fgseaRes %>%
+  as_tibble() %>%
+  arrange(desc(NES))
+
+
+fgseaResTidy %>% 
+  dplyr::select(-leadingEdge, -ES) %>% 
+  arrange(padj) %>% 
+  head()
+write_tsv(x=as.data.frame(fgseaRes),
+	file=here("Output","fGSEA_results_cvid_hc.tsv"))
+```
+
+We can explore the data by plotting top ones and also show 
+enrichment score for a specific gene set, e.g. B cell proliferation.
+```{r patient_plot, fig.width=18, fig.height=9}
+#plot
+# only plot the top 20 pathways
+ggplot(fgseaResTidy %>% filter(padj < 0.008) %>% 
+head(n= 20), aes(reorder(pathway, NES), NES)) +
+  geom_col(aes(fill= NES < 7.5)) +
+  coord_flip() +
+  labs(x="Pathway", y="Normalized Enrichment Score",
+       title="GOBP pathways NES from GSEA") + 
+  theme_minimal()
+
+plotEnrichment(fgsea_sets[["GOBP_REGULATION_OF_B_CELL_PROLIFERATION"]],
+               ranks) + labs(title="B cell proliferation")
+```
+
+## GSEA among different B cell populatoins, CD38+/mid/- 
+In this example, we want to see what pathways are enriched for 
+CD38low population compared to the other two.
+
+```{r cell_population}
+### doing cell population CD38+/m/- differences
+de.cells <- wilcoxauc(cvid.combined, group_by='cells')
+head(de.cells)
+
+dplyr::count(de.cells, group)
+#
+# select only the feature and auc columns for fgsea, which statistics to use is an open question
+cluster0.genes<- de.cells %>%
+  dplyr::filter(group == "CD38_low") %>%
+  arrange(desc(auc)) %>% 
+  dplyr::select(feature, auc)
+
+
+ranks<- deframe(cluster0.genes)
+
+head(ranks)
+
+fgseaRes<- fgsea(fgsea_sets, stats = ranks,
+		eps=0, scoreType="pos"
+	)#, nperm = 1000)
+
+fgseaResTidy <- fgseaRes %>%
+  as_tibble() %>%
+  arrange(desc(NES))
+
+
+fgseaResTidy %>% 
+  dplyr::select(-leadingEdge, -ES) %>% 
+  arrange(padj) %>% 
+  head()
+write_tsv(x=as.data.frame(fgseaRes),
+	file=here("Output","fGSEA_results_cd38_hilowmid.tsv"))
+```
+
+We want to plot to see the results. 
+```{r cell_population_plot, fig.height=9, fig.width=18}
+#plot
+# only plot the top 20 pathways
+ggplot(fgseaResTidy %>% filter(padj < 0.008) %>% 
+head(n= 20), aes(reorder(pathway, NES), NES)) +
+  geom_col(aes(fill= NES < 7.5)) +
+  coord_flip() +
+  labs(x="Pathway", y="Normalized Enrichment Score",
+       title="Hallmark pathways NES from GSEA") + 
+  theme_minimal()
+
+plotEnrichment(fgsea_sets[["GOBP_REGULATION_OF_B_CELL_PROLIFERATION"]],
+               ranks) + labs(title="GOBP_REGULATION_OF_B_CELL_PROLIFERATION_UP")
+```
+
+## GSEA among different clusters.
+Here we will show the cluster 2 compared with all others.
+
+Erik, you probably want to work on to do more comparison, cluster 9, 11, 13, etc.
+```{r clusters}
+########now we need to do clusters.
+### doing cell population differences
+de.clusters <- wilcoxauc(cvid.combined, group_by='seurat_clusters')
+head(de.clusters)
+
+dplyr::count(de.clusters, group)
+#
+# select only the feature and auc columns for fgsea, which statistics to use is an open question
+cluster0.genes<- de.clusters %>%
+  dplyr::filter(group == "2") %>%
+  arrange(desc(auc)) %>% 
+  dplyr::select(feature, auc)
+
+
+ranks<- deframe(cluster0.genes)
+
+head(ranks)
+
+fgseaRes<- fgsea(fgsea_sets, stats = ranks,
+		eps=0, scoreType="pos"
+	)#, nperm = 1000)
+
+fgseaResTidy <- fgseaRes %>%
+  as_tibble() %>%
+  arrange(desc(NES))
+
+
+fgseaResTidy %>% 
+  dplyr::select(-leadingEdge, -ES) %>% 
+  arrange(padj) %>% 
+  head()
+
+write_tsv(x=as.data.frame(fgseaRes),
+	file=here("Output","fGSEA_results_clusters_0To34.tsv"))
+```
+
+```{r cluster_plot}
+#plot
+# only plot the top 20 pathways
+ggplot(fgseaResTidy %>% filter(padj < 0.008) %>% 
+head(n= 20), aes(reorder(pathway, NES), NES)) +
+  geom_col(aes(fill= NES < 7.5)) +
+  coord_flip() +
+  labs(x="Pathway", y="Normalized Enrichment Score",
+       title="Hallmark pathways NES from GSEA") + 
+  theme_minimal()
+
+plotEnrichment(fgsea_sets[["GOBP_REGULATION_OF_B_CELL_PROLIFERATION"]],
+               ranks) + labs(title="GOBP_REGULATION_OF_B_CELL_PROLIFERATION_UP")
+```
+
+Done!! 
+
+```{r session}
+sessionInfo()
+
+```

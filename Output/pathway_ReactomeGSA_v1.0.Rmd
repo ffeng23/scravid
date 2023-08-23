@@ -38,6 +38,7 @@ library(dplyr)
 library(org.Hs.eg.db)
 library(Seurat)
 library(ReactomeGSA)
+library(pheatmap)
 
 ```
 
@@ -60,10 +61,10 @@ print(Idents(cvid.combined)[1:10])
 
 ```{r reactomeAnalysis}
 ##
-gsa_result <- analyse_sc_clusters(cvid.combined, verbose = TRUE)
+#gsa_result <- analyse_sc_clusters(cvid.combined, #verbose = TRUE)
 
 #saveRDS(gsa_result, here("Output","pathway_Reactome_gsa_result.Rds"))
-
+gsa_result<-readRDS(here("Output","pathway_Reactome_gsa_result.Rds"))
 gsa_result
 
 ```
@@ -113,6 +114,9 @@ selected_pathways <- c(
                        "R-HSA-9034013", "R-HSA-9024909", "R-HSA-9025046" # NTRK3 associated pathways 
                        )
 
+selected_pathways_all <-rownames(gsa_pathways)
+
+
 # sort the cells aplhabetically in the pathway result
 org_cols <- colnames(gsa_result@results[[1]]$pathways)
 org_cols <- c(org_cols[1:2], sort(org_cols[3:length(org_cols)]))
@@ -134,6 +138,45 @@ plot_gsva_heatmap(gsa_result, truncate_names = F, pathway_ids = selected_pathway
                   ylab = "Pathways",
                   Colv = F)
 ```
+
+Now, we want to do heatmap and clustering together using Pheatmap.
+
+
+```{r pheatmaps,fig.width=18, fig.height=12 }
+#cluster
+anno.col=data.frame(gsa_pathways[,c(1)])
+rownames(anno.col)<-rownames(gsa_pathways)
+
+clusters<-pheatmap(gsa_pathways[,-1],cluster_cols = TRUE,
+    cluster_rows =TRUE, scale="row", kmeans_k=20
+    )
+#without outliers
+set.seed(111)
+clusters<-pheatmap(gsa_pathways[,-c(1,5,6,13,28,30)], #"X34.Seurat","X11.Seurat", "X12.Seurat", #"X19.Seurat","X32.Seurat")],
+  cluster_cols = TRUE,
+    cluster_rows =TRUE, scale="row", kmeans_k=20
+    )
+
+#retrieve the clusters
+cs<-clusters$kmeans$cluster
+
+cs.results<-data.frame(Id=names(cs), cluster=cs)
+cs.results$Name<-gsa_pathways[cs.results$Id,"Name"]
+
+
+```
+
+It seems cluster 5,15 and 19 are higher in cluster 2 cells and alike. We want to see what they are.
+Similarly, we want see cluster 2 and 3, in which the pathways are downregulated.
+```{r}
+cat("Upregulated pathways in cluster 16 cells:")
+cs.results[cs.results$cluster==16,]
+
+cat("Downregulated pathways in cluster 2 cells:")
+cs.results[cs.results$cluster==2,]
+
+```
+
 
 More to come.     
 

@@ -1,0 +1,207 @@
+---
+title: "GSEA using fgsea and msigdbr for NFKB related pathways"
+author: "Feng, Feng"
+date: "`r Sys.Date()`"
+output:
+  html_document: default
+  pdf_document:
+    fig_caption: yes
+---
+
+
+In this exercise, we run GSEA for NFKB-related pathways using
+the fgsea r package and msigdbr database.
+
+The steps are as follows:
+  - run differential analysis using the wilcoxon test, which is the
+    default analysis by the seurat package. We don't call seurat functions
+    since it is very slow. We rely on a different package (presto). 
+    This method runs differential analysis by pooling genes from each single 
+    cell into a "bulk" sample and doing the tests. 
+    This package can do target cell vs non-target cell comparison 
+    automatically (see below). 
+
+  - retrieve gene set from msigdbr (https://www.gsea-msigdb.org/gsea/msigdb/human/genesets.jsp?collection=C8).
+    In msigdbr, we can specify species, category and subcategory for gene sets. We extract NFKB-related pathways.
+  - Run GSEA (fgsea). 
+  - Plot the heatmap with pheatmap package to show genes in the significant pathways.
+
+# 1. Loading libraries.
+We need the following R libraries for this report:
+```{r libraries, eval=T, message=F}
+
+#R code to do pathway analysis using differential 
+#  gene expression and then fgsea 
+#ref: https://crazyhottommy.github.io/scRNA-seq-workshop-Fall-2019/scRNAseq_workshop_3.html#gene_set_enrichment_(gsea)_analysis
+#--- started 5/23/2023
+# ref: https://reactome.org/
+library(here)
+library(dplyr)
+library(org.Hs.eg.db)
+library(Seurat)
+library(ReactomeGSA)
+library(fgsea)
+library(presto)
+library(msigdbr)
+library(ggplot2)
+library(tidyverse)
+library(pheatmap)
+
+
+```
+
+# 2. start loading data
+
+Here, we load the data from previously processed data with all 
+clusters annotations. Note, we need to set to use the RNA "raw"
+data for this purpose.
+
+```{r loadData}
+data.dir<-"Data"
+
+cvid.combined<-readRDS(file=here("Output","CVIDagg6.int_2K_singleR.Rds"))
+DefaultAssay(cvid.combined)<-"RNA"
+
+#check to make sure the identification is the clusters
+#Idents(cvid.combined)
+
+ 
+
+```
+
+# 3. analysis
+
+## msigdbr gene sets
+
+We first need to set up gene sets by drawing data from 
+msigdb. 
+
+There are multiple collections in the msigdb database. We can browse 
+them by calling the msigdbr_collections function.
+
+```{r msigdb}
+#show contents of database
+msigdbr_collections()
+#https://cran.r-project.org/web/packages/msigdbr/vignettes/msigdbr-intro.html
+#https://www.gsea-msigdb.org/gsea/msigdb/human/genesets.jsp?collection=C8
+```
+
+We first extract all the pathways in msigdb database, and then search for NFKB-related ones.
+
+```{r, msigdb2}
+#human gene, with category C7 is immunological genes
+# C7 5219 gene sets in total
+m_df<- msigdbr(species = "Homo sapiens", category = NULL, 
+    subcategory=NULL)
+
+
+```
+
+## GSEA between different patients, CVID vs. Healthy control.
+
+```{r Patients}
+de.cvid <- wilcoxauc(cvid.combined, group_by='cvid')
+head(de.cvid)
+
+dplyr::count(de.cvid, group)
+#
+pathway_names<-m_df$gs_name
+nfkb_index<-grep(x=pathway_names, 
+#pattern="NFKB",
+pattern="apoptosis|apoptotic",
+ignore.case=T)
+
+m_df<-m_df[nfkb_index,]
+fgsea_sets<- m_df %>% split(x = .$gene_symbol, f = .$gs_name)
+
+
+
+head(fgsea_sets)
+```
+
+The hardest problem is what we pick to be the rank of genes for GSEA. 
+"auc" seems a good choice, but it has one draw back: it is positive. 
+We can not tell whether it is up- or down-regulated based on its value alone.
+We might need to use different values as ranks or add a sign to it. (Later)
+
+```{r patients2}
+#get a rank so to do gsea
+# select only the feature and auc columns for fgsea, which statistics to use is an open question
+cluster0.genes<- de.cvid %>%
+  mutate(rank_stat= auc-0.5)%>%
+  dplyr::filter(group == "CVID") %>%
+  #arrange(desc(auc)) %>% 
+  arrange(desc(rank_stat)) %>% 
+  dplyr::select(feature, rank_stat)
+
+
+
+ranks<- deframe(cluster0.genes)
+
+
+head(ranks)
+
+fgseaRes<- fgsea(fgsea_sets, stats = ranks,
+		eps=0, scoreType="pos"
+	)#, nperm = 1000)
+
+fgseaResTidy <- fgseaRes %>%
+  as_tibble() %>%
+  arrange(NES)
+
+
+fgseaResTidy %>% 
+  dplyr::select(-leadingEdge, -ES) %>% 
+  arrange(padj) %>% 
+  View()
+write_tsv(x=as.data.frame(fgseaRes),
+	file=here("Output","fGSEA_results_cvid_hc_NFKB_all.tsv"))
+```
+
+We now  explore the data by plotting top ones and also show 
+enrichment score for a specific gene set, e.g. hallmark TNFA via NFKB.
+```{r patient_plot, fig.width=18, fig.height=9}
+#plot
+# only plot the top 20 pathways
+ggplot(fgseaResTidy %>% filter(padj < 0.008) %>% 
+head(n= 20), aes(reorder(pathway, NES), NES)) +
+  geom_col(aes(fill= NES < 7.5)) +
+  coord_flip() +
+  labs(x="Pathway", y="Normalized Enrichment Score",
+       title="GOBP pathways NES from GSEA") + 
+  theme_minimal()
+
+plotEnrichment(fgsea_sets[[11]],
+               ranks) + labs(title="hallmark TNFA via NFKB")
+print(fgseaResTidy, n=100)
+```
+
+## Plot heatmap of example hallmark NFKB pathways
+```{r heatmap, fig.width=6, fig.height=18}
+gene_names<-fgsea_sets[[11]]
+gene_dt<-GetAssayData(cvid.combined, slot = "data")
+
+gene_names<-gene_names[is.element(gene_names, rownames(gene_dt))]
+gs_dt<-gene_dt[gene_names,]
+meta_dt<-cvid.combined@meta.data
+#resort and put the order by cvid (HC vs Cvid)
+gs_dt<-gs_dt[, rownames(meta_dt[order(meta_dt$cvid),])]
+gs_dt.1<-apply(gs_dt[,meta_dt$cvid=="HC"], 1, mean)
+gs_dt.2<-apply(gs_dt[,meta_dt$cvid=="CVID"], 1, mean)
+gs_dts<-data.frame(HC=gs_dt.1, CVID=gs_dt.2)
+
+#library(pheatmap)
+#pheatmap(mat=gs_dts[1:120,],scale="row", #show_rownames= T,
+#  show_colnames=T, labels_row=rownames(gs_dt),
+#  cluster_rows=T, cluster_cols=F, border_color="grey")
+
+#plot(c(1,0),c(2,1),col=2)
+
+```
+
+Done!! 
+
+```{r session}
+sessionInfo()
+
+```
