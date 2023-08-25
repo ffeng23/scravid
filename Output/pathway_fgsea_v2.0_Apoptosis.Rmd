@@ -1,5 +1,5 @@
 ---
-title: "GSEA using fgsea and msigdbr for NFKB related pathways"
+title: "GSEA using fgsea and msigdbr for apoptosis/BAFF/TACI related pathways"
 author: "Feng, Feng"
 date: "`r Sys.Date()`"
 output:
@@ -9,7 +9,7 @@ output:
 ---
 
 
-In this exercise, we run GSEA for NFKB-related pathways using
+In this exercise, we run GSEA for apoptosis/BAFF/TACI-related pathways using
 the fgsea r package and msigdbr database.
 
 The steps are as follows:
@@ -46,6 +46,7 @@ library(msigdbr)
 library(ggplot2)
 library(tidyverse)
 library(pheatmap)
+
 
 
 ```
@@ -86,16 +87,57 @@ msigdbr_collections()
 #https://www.gsea-msigdb.org/gsea/msigdb/human/genesets.jsp?collection=C8
 ```
 
-We first extract all the pathways in msigdb database, and then search for NFKB-related ones.
+We first extract all the pathways in msigdb database, and then search for related ones.
 
 ```{r, msigdb2}
 #human gene, with category C7 is immunological genes
 # C7 5219 gene sets in total
 m_df<- msigdbr(species = "Homo sapiens", category = NULL, 
     subcategory=NULL)
+```
+
+Now looking for specific pathways related to the target genes we are interested. First, let's look at the apoptosis pathways.
+
+```{r apoptosis}
+#First apoptosis
+pathway_names<-m_df$gs_name
+nfkb_index<-grep(x=pathway_names, 
+pattern="apoptosis|apoptotic",
+#pattern="BAFF|BAFFR|TNFSF13B",
+ignore.case=T)
+
+print(unique(pathway_names[nfkb_index]))
 
 
 ```
+
+Second one is the BAFF related pathways.
+```{r BAFF}
+#First apoptosis
+pathway_names<-m_df$gs_name
+nfkb_index<-grep(x=pathway_names, 
+#pattern="apoptosis|apoptotic",
+pattern="BAFF|BAFFR|TNFSF13B",
+ignore.case=T)
+
+print(unique(pathway_names[nfkb_index]))
+
+```
+
+Third one is the TACI pathways.
+```{r TACI}
+#TACI
+pathway_names<-m_df$gs_name
+nfkb_index<-grep(x=pathway_names, 
+#pattern="apoptosis|apoptotic",
+pattern="TACI|TNFRSF13B",
+ignore.case=T)
+
+print(unique(pathway_names[nfkb_index]))
+
+```
+
+
 
 ## GSEA between different patients, CVID vs. Healthy control.
 
@@ -109,14 +151,14 @@ pathway_names<-m_df$gs_name
 nfkb_index<-grep(x=pathway_names, 
 #pattern="NFKB",
 pattern="apoptosis|apoptotic",
+#pattern="BAFF|BAFFR|TNFSF13B",
 ignore.case=T)
 
 m_df<-m_df[nfkb_index,]
 fgsea_sets<- m_df %>% split(x = .$gene_symbol, f = .$gs_name)
 
-
-
 head(fgsea_sets)
+
 ```
 
 The hardest problem is what we pick to be the rank of genes for GSEA. 
@@ -128,7 +170,7 @@ We might need to use different values as ranks or add a sign to it. (Later)
 #get a rank so to do gsea
 # select only the feature and auc columns for fgsea, which statistics to use is an open question
 cluster0.genes<- de.cvid %>%
-  mutate(rank_stat= auc-0.5)%>%
+  mutate(rank_stat= auc)%>%
   dplyr::filter(group == "CVID") %>%
   #arrange(desc(auc)) %>% 
   arrange(desc(rank_stat)) %>% 
@@ -147,7 +189,7 @@ fgseaRes<- fgsea(fgsea_sets, stats = ranks,
 
 fgseaResTidy <- fgseaRes %>%
   as_tibble() %>%
-  arrange(NES)
+  arrange(desc(NES))
 
 
 fgseaResTidy %>% 
@@ -155,7 +197,7 @@ fgseaResTidy %>%
   arrange(padj) %>% 
   View()
 write_tsv(x=as.data.frame(fgseaRes),
-	file=here("Output","fGSEA_results_cvid_hc_NFKB_all.tsv"))
+	file=here("Output","fGSEA_results_cvid_hc_apoptosis_all.tsv"))
 ```
 
 We now  explore the data by plotting top ones and also show 
@@ -171,14 +213,14 @@ head(n= 20), aes(reorder(pathway, NES), NES)) +
        title="GOBP pathways NES from GSEA") + 
   theme_minimal()
 
-plotEnrichment(fgsea_sets[[11]],
-               ranks) + labs(title="hallmark TNFA via NFKB")
+plotEnrichment(fgsea_sets[["HALLMARK_APOPTOSIS"]],
+               ranks) + labs(title="HALLMARK_APOPTOSIS")
 print(fgseaResTidy, n=100)
 ```
 
-## Plot heatmap of example hallmark NFKB pathways
+## Plot heatmap of example hallmark apoptosis pathways
 ```{r heatmap, fig.width=6, fig.height=18}
-gene_names<-fgsea_sets[[11]]
+gene_names<-fgsea_sets[["HALLMARK_APOPTOSIS"]]
 gene_dt<-GetAssayData(cvid.combined, slot = "data")
 
 gene_names<-gene_names[is.element(gene_names, rownames(gene_dt))]
@@ -191,13 +233,182 @@ gs_dt.2<-apply(gs_dt[,meta_dt$cvid=="CVID"], 1, mean)
 gs_dts<-data.frame(HC=gs_dt.1, CVID=gs_dt.2)
 
 #library(pheatmap)
-#pheatmap(mat=gs_dts[1:120,],scale="row", #show_rownames= T,
-#  show_colnames=T, labels_row=rownames(gs_dt),
-#  cluster_rows=T, cluster_cols=F, border_color="grey")
+pheatmap(mat=gs_dts[1:120,],scale="row", show_rownames= T,
+  show_colnames=T, labels_row=rownames(gs_dt),
+  cluster_rows=T, cluster_cols=F, border_color="grey")
 
 #plot(c(1,0),c(2,1),col=2)
 
 ```
+
+Next we want to see the results for BAFF.
+```{r BAFF_run}
+m_df<- msigdbr(species = "Homo sapiens", category = NULL, 
+    subcategory=NULL)
+
+
+pathway_names<-m_df$gs_name
+nfkb_index<-grep(x=pathway_names, 
+#pattern="NFKB",
+#pattern="apoptosis|apoptotic",
+pattern="BAFF|BAFFR|TNFSF13B",
+ignore.case=T)
+
+m_df<-m_df[nfkb_index,]
+fgsea_sets<- m_df %>% split(x = .$gene_symbol, f = .$gs_name)
+
+
+head(fgsea_sets)
+
+cluster0.genes<- de.cvid %>%
+  mutate(rank_stat= auc)%>%
+  dplyr::filter(group == "CVID") %>%
+  #arrange(desc(auc)) %>% 
+  arrange(desc(rank_stat)) %>% 
+  dplyr::select(feature, rank_stat)
+
+
+
+ranks<- deframe(cluster0.genes)
+
+
+head(ranks)
+
+fgseaRes<- fgsea(fgsea_sets, stats = ranks,
+    eps=0, scoreType="pos"
+  )#, nperm = 1000)
+
+fgseaResTidy <- fgseaRes %>%
+  as_tibble() %>%
+  arrange(NES)
+
+
+fgseaResTidy %>% 
+  dplyr::select(-leadingEdge, -ES) %>% 
+  arrange(padj) %>% 
+  View()
+
+ggplot(fgseaResTidy %>% filter(padj < 0.008) %>% 
+head(n= 20), aes(reorder(pathway, NES), NES)) +
+  geom_col(aes(fill= NES < 7.5)) +
+  coord_flip() +
+  labs(x="Pathway", y="Normalized Enrichment Score",
+       title="GOBP pathways NES from GSEA") + 
+  theme_minimal()
+
+plotEnrichment(fgsea_sets[["GSE10422_WT_VS_BAFF_TRANSGENIC_LN_BCELL_UP"]],
+               ranks) + labs(title="GSE10422_WT_VS_BAFF_TRANSGENIC_LN_BCELL_UP")
+print(fgseaResTidy, n=100)  
+```
+
+Run heatmap to see gene-specific information.
+
+```{r heatmap_BAFF, fig.width=6, fig.height=18}
+
+gene_names<-fgsea_sets[["GSE10422_WT_VS_BAFF_TRANSGENIC_LN_BCELL_UP"]]
+gene_dt<-GetAssayData(cvid.combined, slot = "data")
+
+gene_names<-gene_names[is.element(gene_names, rownames(gene_dt))]
+gs_dt<-gene_dt[gene_names,]
+meta_dt<-cvid.combined@meta.data
+#resort and put the order by cvid (HC vs Cvid)
+gs_dt<-gs_dt[, rownames(meta_dt[order(meta_dt$cvid),])]
+gs_dt.1<-apply(gs_dt[,meta_dt$cvid=="HC"], 1, mean)
+gs_dt.2<-apply(gs_dt[,meta_dt$cvid=="CVID"], 1, mean)
+gs_dts<-data.frame(HC=gs_dt.1, CVID=gs_dt.2)
+
+#library(pheatmap)
+pheatmap(mat=gs_dts[1:120,],scale="row", show_rownames= T,
+  show_colnames=T, labels_row=rownames(gs_dt),
+  cluster_rows=T, cluster_cols=F, border_color="grey")
+
+```
+
+Now it is to see for TACI the analysis.
+
+```{r TACI_run}
+m_df<- msigdbr(species = "Homo sapiens", category = NULL, 
+    subcategory=NULL)
+
+
+pathway_names<-m_df$gs_name
+nfkb_index<-grep(x=pathway_names, 
+#pattern="NFKB",
+#pattern="apoptosis|apoptotic",
+pattern="TACI|TNFRSF13B",
+ignore.case=T)
+
+m_df<-m_df[nfkb_index,]
+fgsea_sets<- m_df %>% split(x = .$gene_symbol, f = .$gs_name)
+
+
+head(fgsea_sets)
+
+cluster0.genes<- de.cvid %>%
+  mutate(rank_stat= auc)%>%
+  dplyr::filter(group == "CVID") %>%
+  #arrange(desc(auc)) %>% 
+  arrange(desc(rank_stat)) %>% 
+  dplyr::select(feature, rank_stat)
+
+
+
+ranks<- deframe(cluster0.genes)
+
+
+head(ranks)
+
+fgseaRes<- fgsea(fgsea_sets, stats = ranks,
+    eps=0, scoreType="pos"
+  )#, nperm = 1000)
+
+fgseaResTidy <- fgseaRes %>%
+  as_tibble() %>%
+  arrange(NES)
+
+
+fgseaResTidy %>% 
+  dplyr::select(-leadingEdge, -ES) %>% 
+  arrange(padj) %>% 
+  View()
+
+ggplot(fgseaResTidy %>% filter(padj < 0.008) %>% 
+head(n= 20), aes(reorder(pathway, NES), NES)) +
+  geom_col(aes(fill= NES < 7.5)) +
+  coord_flip() +
+  labs(x="Pathway", y="Normalized Enrichment Score",
+       title="GOBP pathways NES from GSEA") + 
+  theme_minimal()
+
+plotEnrichment(fgsea_sets[["MOREAUX_B_LYMPHOCYTE_MATURATION_BY_TACI_DN"]],
+               ranks) + labs(title="MOREAUX_B_LYMPHOCYTE_MATURATION_BY_TACI_DN")
+print(fgseaResTidy, n=100)  
+```
+
+Run heatmap to see gene-specific information.
+
+```{r heatmap_TACI, fig.width=6, fig.height=18}
+
+gene_names<-fgsea_sets[["MOREAUX_B_LYMPHOCYTE_MATURATION_BY_TACI_DN"]]
+gene_dt<-GetAssayData(cvid.combined, slot = "data")
+
+gene_names<-gene_names[is.element(gene_names, rownames(gene_dt))]
+gs_dt<-gene_dt[gene_names,]
+meta_dt<-cvid.combined@meta.data
+#resort and put the order by cvid (HC vs Cvid)
+gs_dt<-gs_dt[, rownames(meta_dt[order(meta_dt$cvid),])]
+gs_dt.1<-apply(gs_dt[,meta_dt$cvid=="HC"], 1, mean)
+gs_dt.2<-apply(gs_dt[,meta_dt$cvid=="CVID"], 1, mean)
+gs_dts<-data.frame(HC=gs_dt.1, CVID=gs_dt.2)
+
+
+#library(pheatmap)
+pheatmap(mat=gs_dts[1:83,],scale="row", show_rownames= T,
+  show_colnames=T, labels_row=rownames(gs_dt),
+  cluster_rows=T, cluster_cols=F, border_color="grey")
+
+```
+
 
 Done!! 
 
