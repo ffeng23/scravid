@@ -1,0 +1,168 @@
+---
+title: "Analysis of mutations of single cell RNASeq data"
+author: "Feng, Feng"
+date: "`r Sys.Date()`"
+header-includes:
+    - \usepackage{setspace}\doublespacing
+output: 
+    pdf_document:
+        fig_caption: yes
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = FALSE,
+  comment = "#>",
+  tidy=FALSE,
+  engine='R'
+)
+```
+# 1 Aim
+
+- Analysis the mutation analysis on the single cell RNASeq date.
+- Visualize and run statistical analysis on the data of Chromosome 17 and 22.
+- Also run analysis on TACI locus.
+
+# 2 Data input
+
+Two pieces of input are need:
+
+- the original unprocessed single cell RNASeq data. We need
+them to get the total number of sequences and total number
+of cells, because we need them to normalize the 
+mutation frequecy obtained below.
+
+- Mutation counts data obtained by the SComatic software. 
+The counts data were summerized and put into a spreadsheet.
+
+
+```{r libraries, eval=T}
+#library
+library(Seurat)
+library(dplyr)
+library(Matrix)
+library(cowplot)
+library(stringr)
+library(SeuratWrappers)
+library(readr)
+library(PerformanceAnalytics)
+library(ggplot2)
+```
+
+Let's first load the sequence data
+
+
+```{r readData1, eval=T}
+#CVIDagg6.data <- Read10X(data.dir = "Documents/PhD Thesis Work/Data/Single Cell/CVIDagg6_05Dec2022/agg6_filtered_feature_bc_matrix")
+CVIDagg6.data <- Read10X(data.dir = 
+	"/home/feng/Windows/windowsD/feng/LAB/MSI/maglione/scRNA_analysis1_20220908/aggr6sub/aggr2212_6sbu/outs/count/filtered_feature_bc_matrix")
+CVIDagg6 <- CreateSeuratObject(counts = CVIDagg6.data, project = "CVIDagg6", min.cells = 3, min.features = 200)
+ct<-GetAssayData(CVIDagg6, slot="counts")
+dat<-GetAssayData(CVIDagg6, slot="data")
+
+#- Add meta.data
+mito.genes <- grep(pattern = "^MT-", x = rownames(x = dat), value = TRUE)
+percent.mito <- Matrix::colSums(dat[mito.genes, ]) / Matrix::colSums(dat)
+CVIDagg6@meta.data$percent.mito <- percent.mito
+CVIDagg6@meta.data$sub <- plyr::mapvalues(x = sapply(str_split(rownames(CVIDagg6@meta.data), "[-]"), function(x) x[2]), from = 1:18, to = rep(seq(1,6),c(3,3,3,3,3,3)))
+CVIDagg6@meta.data$cvid <- plyr::mapvalues(x = sapply(str_split(rownames(CVIDagg6@meta.data), "[-]"), function(x) x[2]), from = 1:18, to = rep(c("HC","CVID","CVID","HC","CVID","HC"),c(3,3,3,3,3,3)))
+CVIDagg6@meta.data$cells <- plyr::mapvalues(x = sapply(str_split(rownames(CVIDagg6@meta.data), "[-]"), function(x) x[2]), from = 1:18, to = rep(c("CD38_high","CD38_mid","CD38_low","CD38_high","CD38_mid","CD38_low","CD38_high","CD38_mid","CD38_low","CD38_high","CD38_low","CD38_mid","CD38_high","CD38_low","CD38_mid","CD38_high","CD38_low","CD38_mid"),c(1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1)))
+
+head(CVIDagg6@meta.data) 
+```
+
+Now do some visualization to see correlations between 
+total number of sequences, unique sequences and total 
+cell numbers. 
+
+```{r correlation, eval=T}
+stat.cell<-CVIDagg6@meta.data %>% 
+	group_by(sub,cvid) %>%
+	summarize(cell_counts=n())
+stat.seq<-CVIDagg6@meta.data %>% 
+	group_by(sub,cvid) %>%
+	summarize(total_counts=sum(nFeature_RNA), 
+		unique_counts=sum(nCount_RNA))
+
+stat<-stat.cell %>% left_join(stat.seq,by=c("sub","cvid"))
+chart.Correlation(stat[,c("cell_counts", 
+	"total_counts","unique_counts")])
+```
+
+It is no surprising that total number of sequences and unique
+sequences are highly correlated. They are also quite well
+correlated with the total number of cells. 
+
+To me, it makes more sense to use total number of cells to
+normalize the mutation counts. 
+
+Next, read in the mutation data
+```{r readData2, eval=T} 
+#get number of cells and sequences for each subject
+muts<-read_csv("/home/feng/Windows/windowsD/feng/LAB/MSI/maglione/SComatic_output/counts_mutations.csv")
+stat <-stat %>% mutate(sub=as.integer(sub))
+muts.stat<-stat %>% left_join(muts,by=c("sub"))
+
+
+```
+
+# 3 analysis and visualization.
+
+We first normalize the counts data using total number of cells.
+
+```{r analysis, eval=T}
+muts.stat <- muts.stat %>% 
+	mutate(TACI_muts_normed= TACI_muts/cell_counts*1000,
+		total_C17_normed=Total_muts_passed_C17/cell_counts*1000,
+		total_C22_normed=Total_muts_passed_C22/cell_counts*1000
+		)
+```
+
+It is hard here to do statistical analysis because the 
+sample size is very small, n=3. We can only run non-parametric
+Wilcoxon test. 
+
+```{r stats, eval=T}
+wilcox.test(TACI_muts_normed~cvid,data=muts.stat )
+
+wilcox.test(total_C17_normed~cvid,data=muts.stat )
+
+
+wilcox.test(total_C17_normed~cvid,data=muts.stat )
+```
+
+Of course, with this small sample size, you can not expect
+the Wilcoxon test to give a significant result at the 0.05
+level.
+
+But the visualization show that the two populations are 
+different. 
+
+- TACI locus
+```{r viz, eval=T}
+ggplot(data=muts.stat, aes(y=TACI_muts_normed,x=sub,colour=as.factor(cvid)))+
+	geom_boxplot() + xlab("Subjects")+ylab("Frequency/1K cells")+
+	theme(legend.position="none")
+```
+
+- Chromosome 17
+
+```{r viz17, eval=T}
+ggplot(data=muts.stat, aes(y=total_C17_normed,x=sub,colour=as.factor(cvid)))+
+	geom_boxplot()+ xlab("Subjects")+ylab("Frequency/1K cells")+
+	theme(legend.position="none")
+```
+- Chromosome 22
+
+```{r viz22, eval=T}
+ggplot(data=muts.stat, aes(y=total_C22_normed,x=sub,colour=as.factor(cvid)))+
+	geom_boxplot()+ xlab("Subjects")+ylab("Frequency/1K cells")+
+	theme(legend.position="none")
+
+```
+
+Done!!!
+
+```{r}
+sessionInfo()
+```
