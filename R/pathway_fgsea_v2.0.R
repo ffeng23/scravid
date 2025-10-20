@@ -16,6 +16,7 @@ library(presto)
 library(msigdbr)
 library(ggplot2)
 library(tidyverse)
+library(pheatmap)
 
 #start loading data
 # for scde/pagoda we need raw count (integer counts)
@@ -45,16 +46,16 @@ msigdbr_collections()
 
 #human gene, with category C7 is immunological genes
 # C7 5219 gene sets in total
-m_df<- msigdbr(species = "Homo sapiens", category = "C5", 
-    subcategory="BP")
+#m_df<- msigdbr(species = "Homo sapiens", category = "C5", 
+#    subcategory="BP")
 
-#m_df<- msigdbr(species = "Homo sapiens", category = NULL, 
-#    subcategory=NULL)
+m_df<- msigdbr(species = "Homo sapiens", category = NULL, 
+    subcategory=NULL)
 
-#pathway_names<-m_df$gs_name
-#nfkb_index<-grep(x=pathway_names, pattern="NFKB",ignore.case=T)
+pathway_names<-m_df$gs_name
+nfkb_index<-grep(x=pathway_names, pattern="NFKB",ignore.case=T)
 
-#m_df<-m_df[nfkb_index,]
+m_df<-m_df[nfkb_index,]
 fgsea_sets<- m_df %>% split(x = .$gene_symbol, f = .$gs_name)
 
 
@@ -88,8 +89,9 @@ fgseaResTidy %>%
   arrange(padj) %>% 
   head()
 write_tsv(x=as.data.frame(fgseaRes),
-	file=here("Output","fGSEA_results_cvid_hc.tsv"))
+	file=here("Output","fGSEA_results_cvid_hc_NFKB_all.tsv"))
 
+print(fgseaResTidy, n=60)
 #plot
 # only plot the top 20 pathways
 ggplot(fgseaResTidy %>% filter(padj < 0.008) %>% 
@@ -100,10 +102,27 @@ head(n= 20), aes(reorder(pathway, NES), NES)) +
        title="GOBP pathways NES from GSEA") + 
   theme_minimal()
 
-plotEnrichment(fgsea_sets[["GOBP_REGULATION_OF_B_CELL_PROLIFERATION"]],
-               ranks) + labs(title="B cell proliferation")
+plotEnrichment(fgsea_sets[[11]],
+               ranks) + labs(title="Hallmark TNF via NFKB")
 
-#now try to find NFKB related pathways
+#now try to find NFKB pathway heatmap
+gene_names<-fgsea_sets[[11]]
+gene_dt<-GetAssayData(cvid.combined, slot = "data")
+
+gene_names<-gene_names[is.element(gene_names, rownames(gene_dt))]
+gs_dt<-gene_dt[gene_names,]
+meta_dt<-cvid.combined@meta.data
+#resort and put the order by cvid (HC vs Cvid)
+gs_dt<-gs_dt[, rownames(meta_dt[order(meta_dt$cvid),])]
+gs_dt.1<-apply(gs_dt[,meta_dt$cvid=="HC"], 1, mean)
+gs_dt.2<-apply(gs_dt[,meta_dt$cvid=="CVID"], 1, mean)
+gs_dts<-data.frame(HC=gs_dt.1, CVID=gs_dt.2)
+
+#library(pheatmap)
+pheatmap(mat=gs_dts[1:120,],scale="row", show_rownames= T,
+  show_colnames=T, labels_row=rownames(gs_dt),
+  cluster_rows=T, cluster_cols=F, border_color="grey")
+##########leftover from v1.0 ### might need to do this later
 
 
 ### doing cell population CD38+/m/- differences
